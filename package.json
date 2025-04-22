@@ -12,6 +12,17 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "customEditors": [
+			{
+				"viewType": "whisperedit.subtitles",
+				"displayName": "Open multiple files",
+				"selector": [
+					{
+						"filenamePattern": "*.json"
+					}
+				]
+			}
+    ],
     "commands": [
       {
         "command": "whisperedit.helloWorld",
