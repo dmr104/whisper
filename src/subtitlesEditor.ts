@@ -3,7 +3,6 @@ import { getNonce } from './util';
 
 export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider {
 
-
 	public static register(context: vscode.ExtensionContext): vscode.Disposable {
 		const provider = new subtitlesEditorProvider(context);
 		const providerRegistration = vscode.window.registerCustomEditorProvider(subtitlesEditorProvider.viewType, provider);
@@ -25,7 +24,31 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 		webviewPanel.webview.options = {
 			enableScripts: true,
 		};
-		webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
+        try {
+            webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
+            const data = await vscode.workspace.fs.readFile(document.uri);
+
+            // Read the JSON file from whisper
+            const jsonString = data.toString();
+            const jsonData = JSON.parse(jsonString);
+
+            // Use the JSON data as needed
+            vscode.window.showInformationMessage("JSON data read successfully!");
+
+            // Send a data from the extension to the webview
+            webviewPanel.webview.postMessage({ segment: jsonData.segments[0].text});
+            webviewPanel.webview.postMessage({ segment: jsonData.segments[1].text});
+            webviewPanel.webview.postMessage({ segment: jsonData.segments[2].text});
+
+            console.log(jsonData.segments[0].text, jsonData.segments[1].text, jsonData.segments[2].text,); // Output the JSON data to the console
+        } catch (error: unknown) {
+            // Use type checking to handle the error
+            if (error instanceof Error) {
+                vscode.window.showErrorMessage(`Error reading JSON file: ${error.message}`);
+            } else {
+            vscode.window.showErrorMessage('An unknown error occurred while reading the JSON file.');
+            }                     
+        }
     }    
 
     /**
@@ -34,7 +57,7 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
     private getHtmlForWebview(webview: vscode.Webview): string {
 		// Local path to script and css for the webview        
 		const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(
-			this.context.extensionUri, 'media', 'catScratch.js'));
+			this.context.extensionUri, 'media', 'subtitles.js'));
 
 		const styleResetUri = webview.asWebviewUri(vscode.Uri.joinPath(
 			this.context.extensionUri, 'media', 'reset.css'));
@@ -76,6 +99,10 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 					<div class="add-button">
 						<button>Scratch!</button>
 					</div>
+				</div>
+                <div class="splurge">
+                    <!-- Here is where stuff gets injected -->
+                    </div>
 				</div>
 				
 				<script nonce="${nonce}" src="${scriptUri}"></script>
