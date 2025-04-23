@@ -39,8 +39,6 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
             webviewPanel.webview.postMessage({ segment: jsonData.segments[0].text});
             webviewPanel.webview.postMessage({ segment: jsonData.segments[1].text});
             webviewPanel.webview.postMessage({ segment: jsonData.segments[2].text});
-
-            console.log(jsonData.segments[0].text, jsonData.segments[1].text, jsonData.segments[2].text,); // Output the JSON data to the console
         } catch (error: unknown) {
             // Use type checking to handle the error
             if (error instanceof Error) {
@@ -100,11 +98,14 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 						<button>Scratch!</button>
 					</div>
 				</div>
-                <div class="splurge">
-                    <!-- Here is where stuff gets injected -->
-                    </div>
-				</div>
-				
+                <div class="toolbar">
+                    <button id="boldBtn">Bold</button>
+                    <button id="italicBtn">Italic</button>
+                    <button id="underlineBtn">Underline</button>
+                    <button id="undoBtn">Undo</button>
+                </div> 
+                <!-- Here is where stuff gets injected -->               
+                <div id="splurge"></div>
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
 			</html>`;            

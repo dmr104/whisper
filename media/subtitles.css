@@ -63,6 +63,16 @@ body.vscode-dark {
 	display: block;
 }
 
-.splurge div {
+#splurge .segment {
     display: inline;
+}
+
+.toolbar {
+    margin-bottom: 10px;
+}
+  
+.toolbar button {
+    margin-right: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
 }
