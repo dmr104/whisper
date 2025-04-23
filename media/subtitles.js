@@ -7,14 +7,7 @@
 	// The undoStack will enable the user to reverse the changes to editing.
 	const undoStack = [];
 
-	const notesContainer = document.querySelector('.notes');
 	const splurgeContainer = document.getElementById('splurge');
-
-    const addButtonContainer = document.querySelector('.add-button');
-	addButtonContainer.querySelector('button').addEventListener('click', () => {
-        addSegmentToSplurge("hello ");
-	});
-
 
     function addSegmentToSplurge(mytext) {
         const segment = document.createElement('div');
@@ -34,7 +27,7 @@
 	document.getElementById("italicBtn").addEventListener("click", () => applyFormat("italic"));
 	document.getElementById("underlineBtn").addEventListener("click", () => applyFormat("underline"));      
 
-	// To record the initial state onto undoStack
+	// To record the initial state onto undoStack we use this flag
 	let hasInitialStateBeenSaved = false;
 
     function applyFormat(type) {
@@ -83,10 +76,10 @@
 		// Make sure we record this change in order to give the possibility of reversing it.
 		undoStack.push(splurgeContainer.innerHTML);
 	}
-	
+
 		// Undo button logic
 		document.getElementById("undoBtn").addEventListener("click", () => {
-			
+
 			if (undoStack.length > 1) {
 			// Remove current state
 			undoStack.pop();
@@ -109,4 +102,31 @@
 			sel.addRange(range);
 		}
 
+		// the following flag is used to control the logic of the button press
+		let changedView=false;
+		// allow the user to toggle whether he/she sees the contenteditable divs
+		document.getElementById("changeBtn").addEventListener("click", () => {
+			// Get a reference to the container div
+			const grabbedAgain = document.getElementById('splurge');
+			const grabbedButton = document.getElementById('changeBtn');
+			if (!changedView){
+			// Get all inner divs
+			const innerDivs = grabbedAgain.getElementsByTagName('div');
+			// Loop through each inner div and add the class
+			for (let i = 0; i < innerDivs.length; i++) {
+   			innerDivs[i].classList.add('no-decoration'); // Add the class
+				};
+			grabbedButton.textContent='Go back';
+			changedView=true;
+			} else {
+			// Get all inner divs
+			const innerDivs = grabbedAgain.getElementsByTagName('div');
+			// Loop through each inner div and add the class
+			for (let i = 0; i < innerDivs.length; i++) {
+				innerDivs[i].classList.remove('no-decoration'); // Add the class
+				};
+			grabbedButton.textContent='Change view';
+			changedView=false;	
+			}
+		});
 }());

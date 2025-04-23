@@ -93,12 +93,8 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 				<title>subtitles</title>
 			</head>
 			<body>
-				<div class="notes">
-					<div class="add-button">
-						<button>Scratch!</button>
-					</div>
-				</div>
                 <div class="toolbar">
+                    <button id="changeBtn">Toggle view</button>
                     <button id="boldBtn">Bold</button>
                     <button id="italicBtn">Italic</button>
                     <button id="underlineBtn">Underline</button>
