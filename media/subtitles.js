@@ -20,13 +20,21 @@
     // We receive in the webview the message from the extension
     window.addEventListener('message', event => {
         const message = event.data;
-        addSegmentToSplurge(message.segment);
+		if(message.segment){
+			addSegmentToSplurge(message.segment);
+		}
       });
 
 	document.getElementById("boldBtn").addEventListener("click", () => applyFormat("bold"));
 	document.getElementById("italicBtn").addEventListener("click", () => applyFormat("italic"));
 	document.getElementById("underlineBtn").addEventListener("click", () => applyFormat("underline"));      
-
+	// Listener for messages from the extension
+	window.addEventListener('message', event => {
+		const message = event.data;
+		if (message.command === 'boldButtonClick') {
+			document.getElementById('boldBtn').click(); // Simulate button click
+		}
+	});
 	// To record the initial state onto undoStack we use this flag
 	let hasInitialStateBeenSaved = false;
 

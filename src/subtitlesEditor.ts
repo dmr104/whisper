@@ -5,7 +5,13 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 
 	public static register(context: vscode.ExtensionContext): vscode.Disposable {
 		const provider = new subtitlesEditorProvider(context);
-		const providerRegistration = vscode.window.registerCustomEditorProvider(subtitlesEditorProvider.viewType, provider);
+		const providerRegistration = vscode.window.registerCustomEditorProvider(subtitlesEditorProvider.viewType, provider,
+            { // This is the options object 
+                webviewOptions: {
+                    retainContextWhenHidden: true
+                }
+            }
+        );
 		return providerRegistration;
 	}
 
@@ -20,9 +26,10 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 		webviewPanel: vscode.WebviewPanel,
 		_token: vscode.CancellationToken
 	): Promise<void> { 
+        webviewPanel.options.retainContextWhenHidden;
 		// Setup initial content for the webview
 		webviewPanel.webview.options = {
-			enableScripts: true,
+			enableScripts: true
 		};
         try {
             webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
@@ -39,6 +46,8 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
             webviewPanel.webview.postMessage({ segment: jsonData.segments[0].text});
             webviewPanel.webview.postMessage({ segment: jsonData.segments[1].text});
             webviewPanel.webview.postMessage({ segment: jsonData.segments[2].text});
+            this.registerCommands(webviewPanel);
+
         } catch (error: unknown) {
             // Use type checking to handle the error
             if (error instanceof Error) {
@@ -47,7 +56,22 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
             vscode.window.showErrorMessage('An unknown error occurred while reading the JSON file.');
             }                     
         }
-    }    
+    }
+    
+    private registerCommands(webviewPanel: vscode.WebviewPanel){
+        // Command to trigger button click
+            const buttonFromKeyBinding =  vscode.commands.registerCommand('whisperedit.triggerButtonClick', () => {
+                webviewPanel.webview.postMessage({ command: 'boldButtonClick' });
+                vscode.window.showInformationMessage('triggerButtonClick executed');
+        });
+        
+        // Ensure to dispose of the command when the panel is closed
+        webviewPanel.onDidDispose(() => {
+            buttonFromKeyBinding.dispose();
+        });        
+    }
+    
+    
 
     /**
 	 * Get the static html used for the editor webviews.

@@ -9,7 +9,6 @@ import * as path from 'path';
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "whisperedit" is now active!');
 	context.subscriptions.push(subtitlesEditorProvider.register(context));
-
 }
 
 // This method is called when your extension is deactivated

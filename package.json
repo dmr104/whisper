@@ -9,7 +9,7 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents":  [],
   "main": "./out/extension.js",
   "contributes": {
     "customEditors": [
@@ -31,6 +31,16 @@
       {
         "command": "whisperedit.openMultipleFiles",
         "title": "Open multiple files for WhisperEdit"
+      },
+      {
+        "command": "whisperedit.triggerButtonClick",
+        "title": "make bold highlighted text"
+      }
+    ],
+    "keybindings": [
+      {
+        "key": "Alt+b",
+        "command": "whisperedit.triggerButtonClick"
       }
     ]
   },
