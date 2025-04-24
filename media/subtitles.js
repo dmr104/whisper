@@ -9,10 +9,11 @@
 
 	const splurgeContainer = document.getElementById('splurge');
 
-    function addSegmentToSplurge(mytext) {
+    function addSegmentToSplurge(mytext, id) {
         const segment = document.createElement('div');
         segment.contentEditable="true";
         segment.className = 'segment';
+		segment.id = id;
         segment.innerText = mytext;
         splurgeContainer.appendChild(segment);
     }
@@ -24,7 +25,7 @@
 	window.addEventListener('message', event => {
 		const message = event.data;
 		if (message.segment){
-			addSegmentToSplurge(message.segment);
+			addSegmentToSplurge(message.segment, message.id);
 		}
 		if (message.command) {
 			console.log('From eventlistener message', message.command);
@@ -156,4 +157,6 @@
 			changedView=false;	
 			}
 		});
+
+
 }());
