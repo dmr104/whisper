@@ -40,7 +40,23 @@
     "keybindings": [
       {
         "key": "Alt+b",
-        "command": "whisperedit.triggerButtonClick"
+        "command": "whisperedit.triggerButtonClick",
+        "args": { "command": "boldButtonClick" }
+      },
+      {
+        "key": "Alt+i",
+        "command": "whisperedit.triggerButtonClick",
+        "args": { "command": "italicButtonClick" }
+      },
+      {
+        "key": "Alt+u",
+        "command": "whisperedit.triggerButtonClick",
+        "args": { "command": "underlineButtonClick" }
+      },
+      {
+        "key": "Alt+o",
+        "command": "whisperedit.triggerButtonClick",
+        "args": { "command": "undoButtonClick" }
       }
     ]
   },

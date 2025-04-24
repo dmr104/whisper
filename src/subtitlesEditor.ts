@@ -60,9 +60,9 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
     
     private registerCommands(webviewPanel: vscode.WebviewPanel){
         // Command to trigger button click
-            const buttonFromKeyBinding =  vscode.commands.registerCommand('whisperedit.triggerButtonClick', () => {
-                webviewPanel.webview.postMessage({ command: 'boldButtonClick' });
-                vscode.window.showInformationMessage('triggerButtonClick executed');
+            const buttonFromKeyBinding =  vscode.commands.registerCommand('whisperedit.triggerButtonClick', (args) => {
+                webviewPanel.webview.postMessage({ command: args.command });
+                vscode.window.showInformationMessage(`triggerButtonClick executed with options ${args.command}`);
         });
         
         // Ensure to dispose of the command when the panel is closed

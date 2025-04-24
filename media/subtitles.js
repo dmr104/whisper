@@ -17,23 +17,38 @@
         splurgeContainer.appendChild(segment);
     }
 
-    // We receive in the webview the message from the extension
-    window.addEventListener('message', event => {
-        const message = event.data;
-		if(message.segment){
-			addSegmentToSplurge(message.segment);
-		}
-      });
-
 	document.getElementById("boldBtn").addEventListener("click", () => applyFormat("bold"));
 	document.getElementById("italicBtn").addEventListener("click", () => applyFormat("italic"));
 	document.getElementById("underlineBtn").addEventListener("click", () => applyFormat("underline"));      
 	// Listener for messages from the extension
 	window.addEventListener('message', event => {
 		const message = event.data;
-		if (message.command === 'boldButtonClick') {
-			document.getElementById('boldBtn').click(); // Simulate button click
+		if (message.segment){
+			addSegmentToSplurge(message.segment);
 		}
+		if (message.command) {
+			console.log('From eventlistener message', message.command);
+			let useThisButtonId = '';
+			switch(message.command) {
+			case 'boldButtonClick':
+				useThisButtonId = 'boldBtn';
+				break;
+			case 'italicButtonClick':
+				useThisButtonId = 'italicBtn';
+				break;
+			case 'underlineButtonClick':
+				useThisButtonId = 'underlineBtn';
+				break;
+			case 'undoButtonClick':
+				useThisButtonId = 'undoBtn';
+				break;	
+			default:
+				useThisButtonId = 'defaultBtn';
+			}
+				document.getElementById(useThisButtonId).click(); // Simulate button click
+		} 
+		
+
 	});
 	// To record the initial state onto undoStack we use this flag
 	let hasInitialStateBeenSaved = false;
@@ -67,6 +82,8 @@
           case 'underline':
             tag = 'u';
             break;
+		  default:
+			tag = 'span';
         }
 
         const wrapper = document.createElement(tag);
@@ -83,10 +100,12 @@
 
 		// Make sure we record this change in order to give the possibility of reversing it.
 		undoStack.push(splurgeContainer.innerHTML);
+		console.log('From applyFormat', undoStack);
 	}
 
 		// Undo button logic
 		document.getElementById("undoBtn").addEventListener("click", () => {
+			console.log('From undoBtn', undoStack);
 
 			if (undoStack.length > 1) {
 			// Remove current state
