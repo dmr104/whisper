@@ -8,7 +8,8 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 		const providerRegistration = vscode.window.registerCustomEditorProvider(subtitlesEditorProvider.viewType, provider,
             { // This is the options object 
                 webviewOptions: {
-                    retainContextWhenHidden: true
+                    retainContextWhenHidden: true,
+                    enableFindWidget: true
                 }
             }
         );
@@ -121,7 +122,7 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 				<title>subtitles</title>
 			</head>
 			<body>
-                <div class="toolbar">
+                <div id="toolbar">
                     <button id="changeBtn">Toggle view</button>
                     <button id="boldBtn">Bold</button>
                     <button id="italicBtn">Italic</button>

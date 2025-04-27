@@ -13,7 +13,7 @@ body.vscode-dark {
     display: inline;
 }
 
-.toolbar {
+#toolbar {
 	flex: auto;
 	font-size: 3em;
 	display: flex;
@@ -21,7 +21,7 @@ body.vscode-dark {
     gap: 3px;
 }
  
-.toolbar button {
+#toolbar button {
     display: flex;
     justify-content: center;
 }
