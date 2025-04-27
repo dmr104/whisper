@@ -97,6 +97,9 @@
 		
 		// Make sure we record this change in order to give the possibility of reversing it.
 		undoStack.push({id: aSegment.id, blobHTML: selection});
+		console.log('Last on undostack is ', undoStack[undoStack.length - 1]);
+		console.log('wrapper is', wrapper);
+		console.log('range is ', range);
 		console.log(undoStack);
 	}
 
@@ -143,7 +146,6 @@
 			id: obj.id, 
 			blobHTML: obj.blobHTML 
 		});
-		console.log("DUDES", undoStack);
 	}
 
 	const processOnMouseUp = function(event) {
@@ -168,8 +170,10 @@
 				id: target.id, 
 				blobHTML: target.outerHTML
 				};
-			aSegment = _aSegment;
-			undoStack.push(_aSegment);
+			// Here we make the copy as aSegment an immutable copy of _aSegment
+			aSegment = { ... _aSegment };
+			// Here again we cause an immutable copy to be stored in the undoStack array
+			undoStack.push({ ... _aSegment});
 			console.log(undoStack);
 		} 
 		
@@ -220,31 +224,35 @@
 		}
 	}
 
-	async function processOnUndoButton () {
+	function processOnUndoButton () {
 		const lastOnStack = undoStack[undoStack.length - 1];
 		console.log(undoStack);
-		// if the last on stack is from a formatting change
-		if (topOfStack) {
-			// Fires on time on each first time of pop.  Logic is for smooth user 
-			// experience depending upon where they left off when undo was pressed
-			console.log('FIDDLESTICKS');
-			if (boxIsChanged) {
-				await performUndoEventTextChange();
-			} else {
-				undoStack.pop();
-				await performUndoEventTextChange();
-			}
+		if (undoStack.length>0){
+			// if the last on stack is from a formatting change
+			if (topOfStack) {
+				// Fires on time on each first time of pop.  Logic is for smooth user 
+				// experience depending upon where they left off when undo was pressed
+				console.log('FIDDLESTICKS');
+				if (boxIsChanged) {
+					console.log("BOX IS CHANGED");
+					performUndoEventTextChange();
+				} else {
+					undoStack.pop();
+					performUndoEventTextChange();
+				}
 
-		} else {
-			if (undoStack.length > 0 && lastOnStack.blobHTML instanceof Selection ) {
-				// the last on stack was from a text alteration
-				console.log('A b/it/u alteration');
-				performUndoEventFormat();
-			} else { 
-				console.log('A text change');
-				await performUndoEventTextChange();	
-			}		
+			} else {
+				if (lastOnStack.blobHTML instanceof Selection ) {
+					// the last on stack was from a text alteration
+					console.log('A b/it/u alteration');
+					performUndoEventFormat();
+				} else { 
+					console.log('A text change');
+					performUndoEventTextChange();	
+				}		
+			}
 		}
+
 		undoStack.pop();
 		topOfStack = false;
 
@@ -256,7 +264,6 @@
 
 	function performUndoEventFormat () {
 		console.log('undostack is ', undoStack);
-			if (undoStack.length > 0) {
 			let grabbedInnerDivById = document.getElementById(undoStack[undoStack.length - 1].id);
 			console.log('from DOM', grabbedInnerDivById);
 			console.log('From blobHTML ', grabbedInnerDivById);
@@ -265,7 +272,6 @@
 			grabbedInnerDivById = undoStack[undoStack.length - 1].blobHTML;
 			// Place cursor at the end
 			placeCursorAtEnd(splurgeContainer);
-			}
 		}
 
 	function placeCursorAtEnd(el) {
@@ -278,15 +284,13 @@
 			sel.addRange(range);
 		}
 
-	async function performUndoEventTextChange () {
+	function performUndoEventTextChange () {
 		console.log('From undostack ', undoStack);
-			if (undoStack.length > 0) {
 			let grabbedInnerDivById = document.getElementById(undoStack[undoStack.length - 1].id);
 			console.log('from DOM ', grabbedInnerDivById);
 			console.log('From blobHTML ', undoStack[undoStack.length - 1].blobHTML);
 
 			grabbedInnerDivById.outerHTML = undoStack[undoStack.length - 1].blobHTML;
-			}
 		}
 
 }());
