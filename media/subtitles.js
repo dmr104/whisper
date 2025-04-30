@@ -1,6 +1,41 @@
 // Script run within the webview itself.
 (function () {
 
+	class ImmutableQueue {
+		constructor() {
+			this.queue = [];
+		}
+	
+		// Enqueue an immutable object
+		enqueue(obj) {
+			const immutableObj = Object.freeze({ ...obj });
+			this.queue.push(immutableObj);
+		}
+	
+		// Dequeue an object
+		dequeue() {
+			if (this.isEmpty()) {
+				return null; // or throw an error
+			}
+			return this.queue.shift();
+		}
+	
+		// Check if the queue is empty
+		isEmpty() {
+			return this.queue.length === 0;
+		}
+	
+		// View the front object without removing it
+		peek() {
+			if (this.isEmpty()) {
+				return null; // or throw an error
+			}
+			return this.queue[0];
+		}
+	}
+
+	const fifoQueue = new ImmutableQueue();
+
 	// Get a reference to the VS Code webview api.
 	// We use this API to post messages back to our extension.
 	const vscode = acquireVsCodeApi();
@@ -10,14 +45,11 @@
 	// The following variable is for if we select a div we are currently within via an input.
 	let storedDivId = null;
 
+	// The following stores the 
+	let grabbedFromDom;
+
 	// The following stores the outerhtml of a text element.  used on mousedown.
 	let mygrabbedFromDom;
-
-	// To determine whether the text within a box has been altered;
-	let contentsOfPreviousBoxIsAltered;
-	
-	// To ease the user experience when we start removing things from stack.
-	let firstTimeThroughStackPopping = true;
 
 	// the following flag is used to control the logic of the change style button press
 	let changedView=false;	
@@ -50,6 +82,7 @@
 	});
 
 	function applyFormat(type) {
+
 		// Get the element where the cursor is located
 		const selection = window.getSelection();
 
@@ -62,6 +95,7 @@
 		if (selectedText.length === 0) {
 			return;
 		}
+
 		let tag;
 		switch (type) {
 		case 'bold':
@@ -94,24 +128,34 @@
 		// Traverse up to find the nearest div
 		while (parentDiv && parentDiv.nodeType !== Node.ELEMENT_NODE) {
 			parentDiv = parentDiv.parentNode;
-		}
+		} 
 
-		// Check whether the parent is a div and get its ID.  And only do the following if the last id doesn't match 
-		// the present one and the last which: succession.  This is to ensure that which: previous will match if the ids do 
+		element = document.getElementById(parentDiv.id);
 
+		// Store the start and end positions
+		const selectedNode = range.startContainer;
+		const myOffset = range.startOffset;
+		
+		console.log('Myoffset', myOffset);
+		// Store the initial cursor position
+		const cursorState = {
+			myOffset: myOffset
+		};		
+				
 		if (parentDiv && parentDiv.id) {			
 			// Make sure we record this change in order to give the possibility of reversing it.
-			undoStack.push({id: parentDiv.id, selection: selection, blobHTML: mygrabbedFromDom});
+			undoStack.push({
+				id: parentDiv.id, 
+				cursor: cursorState, 
+				blobHTML: mygrabbedFromDom});
 		}
-		
-		firstTimeThroughStackPopping = true;
 
+		
+		
 		console.log('Last on undostack is ', undoStack[undoStack.length - 1]);
 		console.log('wrapper is', wrapper);
 		console.log('range is ', range);
 		
-
-		console.log('range commonancestor is ', range.commonAncestorContainer);
 		console.log('selection is ', selection);
 		console.log(undoStack);
 	}
@@ -160,11 +204,13 @@
 			id: target.id, 
 			blobHTML: target.outerHTML 
 			});
+			storedDivId = clickDivId;
 		}
 
-			const grabbedFromDom = document.getElementById(clickDivId);
-			mygrabbedFromDom = grabbedFromDom.outerHTML;
-		
+		// The following two variables are globally scoped
+		grabbedFromDom = document.getElementById(clickDivId);
+		mygrabbedFromDom = grabbedFromDom.outerHTML;
+		console.log('storedDivId is ', storedDivId);
 
 	};
 
@@ -183,17 +229,13 @@
 					id: target.id,
 					blobHTML: mygrabbedFromDom});
 				console.log('HEN', undoStack);
-
+					
 				//Now update the storedDivId
 				storedDivId = inputDivId;
+					
 			} 
 		}
 		
-		// Record that fact that the present box is changed.
-		if (contentsOfPreviousBoxIsAltered === false) {
-			contentsOfPreviousBoxIsAltered = true;
-		}
-	
 	};
 
     function addSegmentToSplurge(mytext, id) {
@@ -235,38 +277,20 @@
 		if (undoStack.length>0){
 			const lastOnStack = undoStack[undoStack.length - 1];
 			// Logic is for smooth user experience depending upon where they left off when undo was pressed
-			if (lastOnStack.selection instanceof Selection) {	
+			if ('cursor' in lastOnStack) {	
 					// the last on stack was from a text alteration
 
 					console.log('A b/it/u alteration');
-					performUndoEventTextChange();
-					undoStack.pop();
-
-					// if (firstTimeThroughStackPopping){
-					// 	undoStack.pop();			
-					// 	performUndoEventFormat();
-					// 	firstTimeThroughStackPopping = false;				
-					// } else {
-					// 	undoStack.pop();
-					// 	performUndoEventFormat();
-					// }
-
+					performUndoEventFormat();
 
 			} else { 
 				// if the last on stack is from a text alteration change
 
-					console.log('A text alteration ');
-					// if (contentsOfPreviousBoxIsAltered) {
-					// 	console.log("BOX IS CHANGED");
-					// 	performUndoEventTextChange();
-					// } else {
-					// 	undoStack.pop();
-					// 	performUndoEventTextChange();
-					// }
-					
+					console.log('A text alteration ');					
 					performUndoEventTextChange();
-					undoStack.pop();
 				}
+			undoStack.pop();
+			console.log('donkeys', undoStack);
 		}
 
 	}
@@ -277,16 +301,52 @@
 			console.log('From undostack is ', undoStack[undoStack.length - 1]);
 			console.log('blobHTML from performUndoEventFormat ', undoStack[undoStack.length - 1].blobHTML);
 
-			let grabbedInnerDivByIdFromUndoStack = document.getElementById(undoStack[undoStack.length - 1].id);
-			console.log('from DOM performUndoEventFormat ', grabbedInnerDivByIdFromUndoStack);
+			const grabbedInnerDivByIdFromDOM = document.getElementById(undoStack[undoStack.length - 1].id);
+			console.log('from DOM performUndoEventFormat ', grabbedInnerDivByIdFromDOM);
 	
-			console.log('From undostack again is ', undoStack[undoStack.length - 1].blobHTML);		
+			const lastObjectOffStack = undoStack[undoStack.length - 1];
+					
 	
-			grabbedInnerDivByIdFromUndoStack.outerHTML = undoStack[undoStack.length - 1].blobHTML;
+			cursorState = undoStack[undoStack.length - 1].cursor;
 
-			// Place cursor at the end
-			placeCursorAtEnd(splurgeContainer);
+			console.log("mycursorState", cursorState);
+			console.log("last blob", lastObjectOffStack.blobHTML);
+			
+
+			grabbedInnerDivByIdFromDOM.outerHTML = undoStack[undoStack.length - 1].blobHTML;
+
+			// Call restoreCursor with the saved cursorState when needed
+			restoreCursor(lastObjectOffStack, cursorState);
 		}
+
+	// Restore the cursor position
+	function restoreCursor(objFromStack, cursorState) {
+			// Get the text node within the div
+			element = document.getElementById(objFromStack.id);
+			console.log('element is ', element);
+			console.log('From undostack again is ', undoStack);
+
+			const range = document.createRange();
+			// const selection = window.getSelection(); 
+			// const mydiv = document.getElementById(objFromStack.id);
+			
+			textNode = element.firstChild;
+
+			// newParent = document.createElement('div');
+			// range.selectNode(document.getElementById(objFromStack.id));
+			
+			// // Set the start and end of the range to the desired offset
+
+			range.setStart(textNode, 2);
+			range.setEnd(textNode, 5);
+			console.log('textNode is ', textNode);
+			console.log('range is ', range);
+			// Clear any existing selection and apply the new range
+			const selection = window.getSelection();
+			selection.removeAllRanges();
+			selection.addRange(range);
+			// range.surroundContents(newParent);
+	}
 
 	function placeCursorAtEnd(el) {
 			el.focus();
@@ -303,11 +363,11 @@
 			if (!undoStack[0]) { 
 				return; 
 			};
-			let grabbedInnerDivByIdFromUndoStack = document.getElementById(undoStack[undoStack.length - 1].id);
-			console.log('from DOM performUndoEventTextChange ', grabbedInnerDivByIdFromUndoStack);
+			let grabbedInnerDivByIdFromDOM = document.getElementById(undoStack[undoStack.length - 1].id);
+			console.log('from DOM performUndoEventTextChange ', grabbedInnerDivByIdFromDOM);
 			console.log('From blobHTML performUndoEventTextChange ', undoStack[undoStack.length - 1].blobHTML);
 
-			grabbedInnerDivByIdFromUndoStack.outerHTML = undoStack[undoStack.length - 1].blobHTML;
+			grabbedInnerDivByIdFromDOM.outerHTML = undoStack[undoStack.length - 1].blobHTML;
 		}
 
 }());
