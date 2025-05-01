@@ -89,7 +89,15 @@
 		if (!selection.rangeCount) {
 			return;
 		}
+
 		const range = selection.getRangeAt(0);
+	
+		// Store the start and end positions
+	    const startContainer = range.startContainer;
+		const startOffset = range.startOffset;
+		const endContainer = range.endContainer;
+		const endOffset = range.endOffset;
+
 		const selectedText = range.toString();
 	
 		if (selectedText.length === 0) {
@@ -132,16 +140,16 @@
 
 		element = document.getElementById(parentDiv.id);
 
-		// Store the start and end positions
-		const selectedNode = range.startContainer;
-		const myOffset = range.startOffset;
-		
-		console.log('Myoffset', myOffset);
 		// Store the initial cursor position
 		const cursorState = {
-			myOffset: myOffset
+	        startContainer: startContainer,
+			startOffset: startOffset,
+			endContainer: endContainer,
+			endOffset: endOffset
 		};		
-				
+		
+		console.log('cursorState', cursorState);
+
 		if (parentDiv && parentDiv.id) {			
 			// Make sure we record this change in order to give the possibility of reversing it.
 			undoStack.push({
@@ -327,7 +335,7 @@
 			console.log('From undostack again is ', undoStack);
 
 			const range = document.createRange();
-			// const selection = window.getSelection(); 
+			const selection = window.getSelection(); 
 			// const mydiv = document.getElementById(objFromStack.id);
 			
 			textNode = element.firstChild;
@@ -337,12 +345,13 @@
 			
 			// // Set the start and end of the range to the desired offset
 
-			range.setStart(textNode, 2);
-			range.setEnd(textNode, 5);
+			range.setStart(textNode, cursorState.startOffset);
+			range.setEnd(textNode, cursorState.endOffset);
+
 			console.log('textNode is ', textNode);
 			console.log('range is ', range);
 			// Clear any existing selection and apply the new range
-			const selection = window.getSelection();
+			// const selection = window.getSelection();
 			selection.removeAllRanges();
 			selection.addRange(range);
 			// range.surroundContents(newParent);
