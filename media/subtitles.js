@@ -1,3 +1,4 @@
+
 // Script run within the webview itself.
 (function () {
 
@@ -92,8 +93,10 @@
 
 		const range = selection.getRangeAt(0);
 	
-		// Store the start and end positions
-	    const startContainer = range.startContainer;
+		// Store the start and end positions.  It is important to realise that we grab a node from the parent using
+		// parent.childNodes[i], but first we need to obtain the parent from where the cursor was located
+	    // The following produces the actual text of the node.  use .parent to obtain the parent.
+		const startContainer = range.startContainer;
 		const startOffset = range.startOffset;
 		const endContainer = range.endContainer;
 		const endOffset = range.endOffset;
@@ -131,21 +134,41 @@
 		selection.removeAllRanges();
 		selection.addRange(range);
 
-		// The following is to find the div containing the cursor.
+		// The following is to find the div containing the cursor.  It will change
 		let parentDiv = range.commonAncestorContainer;
+
 		// Traverse up to find the nearest div
 		while (parentDiv && parentDiv.nodeType !== Node.ELEMENT_NODE) {
 			parentDiv = parentDiv.parentNode;
 		} 
 
-		element = document.getElementById(parentDiv.id);
+		// Get the common ancestor
+		const commonAncestor = range.commonAncestorContainer;
+		console.log('commonAncestor is', commonAncestor);
+		// Traverse up to find the nearest div
+	
+		const children = commonAncestor.childNodes;
+
+		// Find the index of the text node
+		let index = -1;
+		for (let i = 0; i < children.length; i++) {
+			if (children[i] === startContainer) {
+				index = i;
+				break;
+			}
+		}
+		
+		// Log the index
+		console.log('Text node index in common ancestor children:', index);
+
 
 		// Store the initial cursor position
 		const cursorState = {
 	        startContainer: startContainer,
 			startOffset: startOffset,
 			endContainer: endContainer,
-			endOffset: endOffset
+			endOffset: endOffset,
+			nodeIndex: index
 		};		
 		
 		console.log('cursorState', cursorState);
@@ -157,11 +180,8 @@
 				cursor: cursorState, 
 				blobHTML: mygrabbedFromDom});
 		}
-
-		
 		
 		console.log('Last on undostack is ', undoStack[undoStack.length - 1]);
-		console.log('wrapper is', wrapper);
 		console.log('range is ', range);
 		
 		console.log('selection is ', selection);
@@ -303,34 +323,34 @@
 
 	}
 
-	function performUndoEventFormat () {
-			console.log(undoStack);	
-
-			console.log('From undostack is ', undoStack[undoStack.length - 1]);
-			console.log('blobHTML from performUndoEventFormat ', undoStack[undoStack.length - 1].blobHTML);
-
-			const grabbedInnerDivByIdFromDOM = document.getElementById(undoStack[undoStack.length - 1].id);
-			console.log('from DOM performUndoEventFormat ', grabbedInnerDivByIdFromDOM);
-	
-			const lastObjectOffStack = undoStack[undoStack.length - 1];
-					
-	
-			cursorState = undoStack[undoStack.length - 1].cursor;
-
-			console.log("mycursorState", cursorState);
-			console.log("last blob", lastObjectOffStack.blobHTML);
+	async function performUndoEventFormat () {
 			
+			// Obtain the last object from the stack
+			const fromStack = undoStack[undoStack.length - 1];
+	
+			// grab element from DOM
+			const fromDOM = document.getElementById(fromStack.id);
+	
+			// update the DOM
+			fromDOM.outerHTML = fromStack.blobHTML;
 
-			grabbedInnerDivByIdFromDOM.outerHTML = undoStack[undoStack.length - 1].blobHTML;
-
-			// Call restoreCursor with the saved cursorState when needed
-			restoreCursor(lastObjectOffStack, cursorState);
+			// Call restoreCursor to which function we pass the grabbed DOM element as div
+			await restoreCursor(fromDOM, fromStack);
 		}
 
 	// Restore the cursor position
-	function restoreCursor(objFromStack, cursorState) {
+	async function restoreCursor(fromDOM, fromStack) {
+			console.log('fromDOM', fromDOM);
+			console.log("last blob from stack ", fromStack.blobHTML);
+
+			const children = fromDOM.childNodes;
+			console.log('children', children);
+
+			cursorState = fromStack.cursor;
+			console.log("mycursorState", cursorState);
+	
 			// Get the text node within the div
-			element = document.getElementById(objFromStack.id);
+			element = document.getElementById(fromStack.id);
 			console.log('element is ', element);
 			console.log('From undostack again is ', undoStack);
 
@@ -339,6 +359,7 @@
 			// const mydiv = document.getElementById(objFromStack.id);
 			
 			textNode = element.firstChild;
+			console.log('textNode is ', textNode);
 
 			// newParent = document.createElement('div');
 			// range.selectNode(document.getElementById(objFromStack.id));
