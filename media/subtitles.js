@@ -323,7 +323,7 @@
 
 	}
 
-	async function performUndoEventFormat () {
+	function performUndoEventFormat () {
 			
 			// Obtain the last object from the stack
 			const fromStack = undoStack[undoStack.length - 1];
@@ -335,41 +335,36 @@
 			fromDOM.outerHTML = fromStack.blobHTML;
 
 			// Call restoreCursor to which function we pass the grabbed DOM element as div
-			await restoreCursor(fromDOM, fromStack);
+			restoreCursor(fromStack);
 		}
 
 	// Restore the cursor position
-	async function restoreCursor(fromDOM, fromStack) {
-			console.log('fromDOM', fromDOM);
+	function restoreCursor(fromStack) {
 			console.log("last blob from stack ", fromStack.blobHTML);
-
-			const children = fromDOM.childNodes;
-			console.log('children', children);
-
+	
 			cursorState = fromStack.cursor;
 			console.log("mycursorState", cursorState);
 	
-			// Get the text node within the div
-			element = document.getElementById(fromStack.id);
-			console.log('element is ', element);
-			console.log('From undostack again is ', undoStack);
-
 			const range = document.createRange();
 			const selection = window.getSelection(); 
-			// const mydiv = document.getElementById(objFromStack.id);
-			
-			textNode = element.firstChild;
-			console.log('textNode is ', textNode);
 
+
+			const mydiv = document.getElementById(fromStack.id);
+			const grabbedDOM = mydiv.firstChild;
+
+			const children = mydiv.childNodes;
+			console.log('children', children);
+
+			const selectedChild = children[cursorState.nodeIndex];
 			// newParent = document.createElement('div');
 			// range.selectNode(document.getElementById(objFromStack.id));
 			
 			// // Set the start and end of the range to the desired offset
 
-			range.setStart(textNode, cursorState.startOffset);
-			range.setEnd(textNode, cursorState.endOffset);
+			range.setStart(selectedChild, cursorState.startOffset);
+			range.setEnd(selectedChild, cursorState.endOffset);
 
-			console.log('textNode is ', textNode);
+			console.log('grabbedDOM ', grabbedDOM);
 			console.log('range is ', range);
 			// Clear any existing selection and apply the new range
 			// const selection = window.getSelection();
