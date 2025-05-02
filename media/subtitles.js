@@ -58,7 +58,11 @@
 	// The following is used in the function addSegmentToSplurge
 	const splurgeContainer = document.getElementById('splurge');
 
-	document.getElementById("boldBtn").addEventListener("click", () => applyFormat("bold"));
+	document.getElementById("boldBtn").addEventListener("click", (e) => {
+		applyFormat("bold");
+	}
+		
+	);
 	document.getElementById("italicBtn").addEventListener("click", () => applyFormat("italic"));
 	document.getElementById("underlineBtn").addEventListener("click", () => applyFormat("underline"));
 	// allow the user to toggle whether he/she sees the contenteditable divs
@@ -76,7 +80,6 @@
 	splurgeContainer.addEventListener('input', (e) => {
 		processInput(e);
 	});
-
 	
 	splurgeContainer.addEventListener('mousedown', (e) => {
 		processMouseClick(e);
@@ -134,22 +137,22 @@
 		selection.removeAllRanges();
 		selection.addRange(range);
 
-		// The following is to find the div containing the cursor.  It will change
-		let parentDiv = range.commonAncestorContainer;
-
-		// Traverse up to find the nearest div
-		while (parentDiv && parentDiv.nodeType !== Node.ELEMENT_NODE) {
-			parentDiv = parentDiv.parentNode;
-		} 
-
+		// The following is to find the div containing where the mouse was clicked.  
+		// This is done in order to decide whether the commonancestor has an id, if 
+		// it does then we have a div not a strong, italic, or underline
+		
 		// Get the common ancestor
 		const commonAncestor = range.commonAncestorContainer;
 		console.log('commonAncestor is', commonAncestor);
-		// Traverse up to find the nearest div
-	
-		const children = commonAncestor.childNodes;
+		
+		if(!commonAncestor.id){
+			console.log('Return now');	
+			return;
+		}
 
+	
 		// Find the index of the text node
+		const children = commonAncestor.childNodes;	
 		let index = -1;
 		for (let i = 0; i < children.length; i++) {
 			if (children[i] === startContainer) {
@@ -157,6 +160,8 @@
 				break;
 			}
 		}
+
+		
 		
 		// Log the index
 		console.log('Text node index in common ancestor children:', index);
@@ -173,10 +178,10 @@
 		
 		console.log('cursorState', cursorState);
 
-		if (parentDiv && parentDiv.id) {			
+		if (commonAncestor && commonAncestor.id) {			
 			// Make sure we record this change in order to give the possibility of reversing it.
 			undoStack.push({
-				id: parentDiv.id, 
+				id: commonAncestor.id, 
 				cursor: cursorState, 
 				blobHTML: mygrabbedFromDom});
 		}
@@ -224,21 +229,37 @@
 	};
 
 	const processMouseClick = function (event) {
-		target = event.target;
-		const clickDivId = target.id;
+		let target = event.target;
 
-		if (undoStack.length === 0) { // stack is empty
-			undoStack.push({ 
-			id: target.id, 
-			blobHTML: target.outerHTML 
-			});
-			storedDivId = clickDivId;
+		const test = target.parentNode;
+		console.log('test ', test);
+
+		while (!target.id) {
+			target = target.parentNode;
+			console.log("SUCCESS");
+			return;
 		}
 
+		const clickDivId = target.id;
+
+		// if (undoStack.length === 0) { // stack is empty
+		// 	undoStack.push({ 
+		// 	id: target.id, 
+		// 	blobHTML: target.outerHTML 
+		// 	});
+		// 	storedDivId = clickDivId;
+		// }
+
+		console.log('storedDivId is ', storedDivId);
+		console.log('clickDivId is ', clickDivId);
+		console.log('target is ', target);
+
+	
 		// The following two variables are globally scoped
 		grabbedFromDom = document.getElementById(clickDivId);
 		mygrabbedFromDom = grabbedFromDom.outerHTML;
 		console.log('storedDivId is ', storedDivId);
+	
 
 	};
 
@@ -248,10 +269,15 @@
 		const inputDivId= target.id;
 
 		if (storedDivId === null) { // No ID is currently stored
+
+			undoStack.push({
+				id: target.id,
+				blobHTML: mygrabbedFromDom});
+			console.log('CHICKEN', undoStack);
 			storedDivId = inputDivId;
 
 		} else { // An ID is already stored
-		
+				
 			if (storedDivId !== inputDivId) {  // No match. Have moved to another box.	
 				undoStack.push({
 					id: target.id,
@@ -302,7 +328,13 @@
 	}
 
 	function processOnUndoButton () {
-		if (undoStack.length>0){
+		
+		const selection = window.getSelection();
+		selection.removeAllRanges();
+
+		if (undoStack.length === 0){
+			storedDivId = null;  //reset to start stack at the beginning
+		} else {  // undoStack length is greater than 0
 			const lastOnStack = undoStack[undoStack.length - 1];
 			// Logic is for smooth user experience depending upon where they left off when undo was pressed
 			if ('cursor' in lastOnStack) {	
