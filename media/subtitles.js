@@ -46,8 +46,8 @@
 	// The following variable is for if we select a div we are currently within via an input.
 	let storedDivId = null;
 
-	// The following stores the 
-	let grabbedFromDom;
+	// The following is used to pass the event.target.id of where the mouse is clicked to applyFormat
+	let clickDivId;
 
 	// The following stores the outerhtml of a text element.  used on mousedown.
 	let mygrabbedFromDom;
@@ -86,6 +86,13 @@
 	});
 
 	function applyFormat(type) {
+		// We store this div from the DOM in case we click a formatting button 
+		// with the text highlighted within a previously formatted bit
+		let storeThisDiv = document.getElementById(clickDivId);
+		const theStoredDiv = storeThisDiv.outerHTML;
+		console.log('theStoredDiv is ', theStoredDiv);
+
+		console.log('storeThisDiv ', storeThisDiv);
 
 		// Get the element where the cursor is located
 		const selection = window.getSelection();
@@ -96,6 +103,7 @@
 
 		const range = selection.getRangeAt(0);
 	
+
 		// Store the start and end positions.  It is important to realise that we grab a node from the parent using
 		// parent.childNodes[i], but first we need to obtain the parent from where the cursor was located
 	    // The following produces the actual text of the node.  use .parent to obtain the parent.
@@ -137,20 +145,16 @@
 		selection.removeAllRanges();
 		selection.addRange(range);
 
+	
+		// Get the common ancestor
 		// The following is to find the div containing where the mouse was clicked.  
 		// This is done in order to decide whether the commonancestor has an id, if 
 		// it does then we have a div not a strong, italic, or underline
-		
-		// Get the common ancestor
+
+
 		const commonAncestor = range.commonAncestorContainer;
 		console.log('commonAncestor is', commonAncestor);
-		
-		if(!commonAncestor.id){
-			console.log('Return now');	
-			return;
-		}
 
-	
 		// Find the index of the text node
 		const children = commonAncestor.childNodes;	
 		let index = -1;
@@ -160,8 +164,6 @@
 				break;
 			}
 		}
-
-		
 		
 		// Log the index
 		console.log('Text node index in common ancestor children:', index);
@@ -184,7 +186,13 @@
 				id: commonAncestor.id, 
 				cursor: cursorState, 
 				blobHTML: mygrabbedFromDom});
+		} else {
+				storeThisDiv.innerHTML = theStoredDiv;
+				performUndoEventFormat('do');
+				console.log('Return now', undoStack);	
 		}
+
+	
 		
 		console.log('Last on undostack is ', undoStack[undoStack.length - 1]);
 		console.log('range is ', range);
@@ -231,35 +239,20 @@
 	const processMouseClick = function (event) {
 		let target = event.target;
 
-		const test = target.parentNode;
-		console.log('test ', test);
-
-		while (!target.id) {
+		// move up to the div element with an id on it
+		while (!target.id){
 			target = target.parentNode;
-			console.log("SUCCESS");
-			return;
 		}
 
-		const clickDivId = target.id;
-
-		// if (undoStack.length === 0) { // stack is empty
-		// 	undoStack.push({ 
-		// 	id: target.id, 
-		// 	blobHTML: target.outerHTML 
-		// 	});
-		// 	storedDivId = clickDivId;
-		// }
+		// clickDivId is global
+		clickDivId = target.id;
+		grabbedFromDom = document.getElementById(clickDivId);
+		mygrabbedFromDom = grabbedFromDom.outerHTML;
+		// clickDivId and storedDivId are globally scoped
 
 		console.log('storedDivId is ', storedDivId);
 		console.log('clickDivId is ', clickDivId);
-		console.log('target is ', target);
-
-	
-		// The following two variables are globally scoped
-		grabbedFromDom = document.getElementById(clickDivId);
-		mygrabbedFromDom = grabbedFromDom.outerHTML;
-		console.log('storedDivId is ', storedDivId);
-	
+		console.log('target is ', target);		
 
 	};
 
@@ -329,6 +322,7 @@
 
 	function processOnUndoButton () {
 		
+		// Deselect the already selected text
 		const selection = window.getSelection();
 		selection.removeAllRanges();
 
@@ -355,19 +349,25 @@
 
 	}
 
-	function performUndoEventFormat () {
+	function performUndoEventFormat (cancel = 'not') {
 			
-			// Obtain the last object from the stack
-			const fromStack = undoStack[undoStack.length - 1];
+			//cancel is set to 'do' when this function is invoked from applyFormat
+			if (cancel === 'do'){
+				return;
+			} else {  // cancel === 'not'
+				// Obtain the last object from the stack
+				const fromStack = undoStack[undoStack.length - 1];
+		
+				// grab element from DOM
+				const fromDOM = document.getElementById(fromStack.id);
+		
+				// update the DOM
+				fromDOM.outerHTML = fromStack.blobHTML;
 	
-			// grab element from DOM
-			const fromDOM = document.getElementById(fromStack.id);
-	
-			// update the DOM
-			fromDOM.outerHTML = fromStack.blobHTML;
+				// Call restoreCursor to which function we pass the grabbed DOM element as div
+				restoreCursor(fromStack);
+			}
 
-			// Call restoreCursor to which function we pass the grabbed DOM element as div
-			restoreCursor(fromStack);
 		}
 
 	// Restore the cursor position
