@@ -2,41 +2,6 @@
 // Script run within the webview itself.
 (function () {
 
-	class ImmutableQueue {
-		constructor() {
-			this.queue = [];
-		}
-	
-		// Enqueue an immutable object
-		enqueue(obj) {
-			const immutableObj = Object.freeze({ ...obj });
-			this.queue.push(immutableObj);
-		}
-	
-		// Dequeue an object
-		dequeue() {
-			if (this.isEmpty()) {
-				return null; // or throw an error
-			}
-			return this.queue.shift();
-		}
-	
-		// Check if the queue is empty
-		isEmpty() {
-			return this.queue.length === 0;
-		}
-	
-		// View the front object without removing it
-		peek() {
-			if (this.isEmpty()) {
-				return null; // or throw an error
-			}
-			return this.queue[0];
-		}
-	}
-
-	const fifoQueue = new ImmutableQueue();
-
 	// Get a reference to the VS Code webview api.
 	// We use this API to post messages back to our extension.
 	const vscode = acquireVsCodeApi();

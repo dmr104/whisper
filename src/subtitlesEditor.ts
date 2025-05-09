@@ -42,7 +42,7 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 
             // Use the JSON data as needed
             vscode.window.showInformationMessage("JSON data read successfully!");
-
+            console.log('jsonData is ', jsonData);
 
             // Send a data from the extension to the webview
             for (let i=0; i < jsonData.segments.length; i++){
