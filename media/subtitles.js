@@ -392,4 +392,13 @@
 			grabbedInnerDivByIdFromDOM.outerHTML = undoStack[undoStack.length - 1].blobHTML;
 		}
 
+		// The following eventListener is to be fired when then page has totally loaded.  The message will be 
+		// used in the extension in order to trigger the initial population of the webview by the data structure.
+        window.addEventListener('load', () => {
+            vscode.postMessage({
+                command: 'webViewReady',
+                text: 'Webview is loaded and ready to receive content.'
+            });
+        });		
+
 }());

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getNonce } from './util';
+import { read } from 'fs';
 
 export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider {
 
@@ -32,35 +33,65 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 		webviewPanel.webview.options = {
 			enableScripts: true
 		};
-        try {
-            webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
-            const data = await vscode.workspace.fs.readFile(document.uri);
+        webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
 
-            // Read the JSON file from whisper
-            const jsonString = data.toString();
-            const jsonData = JSON.parse(jsonString);
+        async function readFromFile() {
+            try {
+                const data = await vscode.workspace.fs.readFile(document.uri);
 
-            // Use the JSON data as needed
-            vscode.window.showInformationMessage("JSON data read successfully!");
-            console.log('jsonData is ', jsonData);
-
-            // Send a data from the extension to the webview
-            for (let i=0; i < jsonData.segments.length; i++){
-                const seg = jsonData.segments[i];
-                webviewPanel.webview.postMessage({ segment: seg.text, id: seg.id});
+                // Read the JSON file from whisper
+                const jsonString = data.toString();
+                const jsonData = JSON.parse(jsonString);
+                return jsonData;
+            } catch (error: unknown) {
+                // Use type checking to handle the error
+                if (error instanceof Error) {
+                    vscode.window.showErrorMessage(`Error reading JSON file: ${error.message}`);
+                    console.error("Error reading or parsing file:", error);
+                } else {
+                vscode.window.showErrorMessage('An unknown error occurred while reading the JSON file.');
+                }                                     
+                throw error; // Rethrow the error for further handling
             }
-
-            // Invoke to bind all our keybindings
-            this.registerCommands(webviewPanel);
-
-        } catch (error: unknown) {
-            // Use type checking to handle the error
-            if (error instanceof Error) {
-                vscode.window.showErrorMessage(`Error reading JSON file: ${error.message}`);
-            } else {
-            vscode.window.showErrorMessage('An unknown error occurred while reading the JSON file.');
-            }                     
         }
+
+        async function initalizeWebview () {
+            readFromFile()
+                .then(jsonData => {
+                    // Use the JSON data as needed
+                    vscode.window.showInformationMessage("JSON data read successfully!");
+                    console.log('jsonData is ', jsonData);
+    
+                    // Send a data from the extension to the webview
+                    for (let i=0; i < jsonData.segments.length; i++){
+                        const seg = jsonData.segments[i];
+                        webviewPanel.webview.postMessage({ segment: seg.text, id: seg.id});
+                    }
+                })
+                .catch(error => {
+                    vscode.window.showErrorMessage("Failed to read JSON data.");
+                    console.error("Error reading JSON data:", error);
+                });
+        }
+
+        webviewPanel.webview.onDidReceiveMessage(
+            async message => {
+                switch (message.command) {
+                    case 'webViewReady':
+                        vscode.window.showInformationMessage(message.text || 'Webview has signaled it is ready!');
+
+                        // Now that the webview is ready, send the initial content to it.                       
+                        initalizeWebview();
+                        return;                     
+                }
+            },
+            undefined,
+            this.context.subscriptions
+        );
+
+        // Invoke to bind all our keybindings
+        this.registerCommands(webviewPanel);
+
     }
     
     private registerCommands(webviewPanel: vscode.WebviewPanel){
@@ -70,10 +101,14 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
                 vscode.window.showInformationMessage(`triggerButtonClick executed with options ${args.command}`);
         });
         
-        // Ensure to dispose of the command when the panel is closed
-        webviewPanel.onDidDispose(() => {
+        // Handle when the webview panel is closed
+        webviewPanel.onDidDispose( () => {
+            // Clean up resources, etc.
+            console.log('Webview panel closed.');
             buttonFromKeyBinding.dispose();
-        });        
+        },
+        null,
+        this.context.subscriptions);        
     }
     
     
