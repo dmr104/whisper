@@ -1,4 +1,3 @@
-
 // Script run within the webview itself.
 (function () {
 
@@ -44,11 +43,58 @@
 
 	splurgeContainer.addEventListener('input', (e) => {
 		processInput(e);
+
+		// Make sure we send an update to the extension from the webView every time a key is input.
+		updateToExt(e);
 	});
 	
 	splurgeContainer.addEventListener('mousedown', (e) => {
 		processMouseClick(e);
 	});
+
+	function updateToExt(event){
+		target = event.target;
+		myID = target.id;
+		console.log('TARGET from updateToExt is ', target);
+		myTextContentHTML = target.innerHTML;
+		console.log('target.innerHTML is ', myTextContentHTML);
+		myTextContentInner = target.innerText;
+		console.log('target.innerText is ', myTextContentInner);
+
+		// The following is to update the extension from the webview each time a key is pressed.
+		processUpdateToExt(myID, myTextContentInner, myTextContentHTML);
+	}
+
+	function processUpdateToExt(myID, myInnerText, myHTML) {
+		vscode.postMessage({ 
+			type: 'updateText',
+			id: myID,
+			textInner: myInnerText,
+			textHTML: myHTML 
+		});
+	}
+
+	function anotherUpdateToExt () {			
+		// The following is to grab the modified div in order to update the extension from the webView each 
+		// time a formatting occurs (bold, italics, underline).
+
+		// Set the innerHTML of a variable to the provided outerHTML from a global variable.
+		let tempDiv = document.createElement('div');
+		tempDiv.innerHTML = mygrabbedFromDom;
+		let myStoredDiv = tempDiv.firstElementChild;
+		console.log('Andromeda ', myStoredDiv);
+
+		const divID = myStoredDiv.id;
+		let afterStoredDiv = document.getElementById(divID);
+		// We pass three fields of information from the webview to the extension.
+		const myID = afterStoredDiv.id;
+		const divInnerHTML = afterStoredDiv.innerHTML;
+		const divInnerText = afterStoredDiv.innerText;
+		console.log('HOORAY!', afterStoredDiv);
+		console.log('Frogs in trees ', myID, divInnerText, divInnerHTML);
+		processUpdateToExt(divID, divInnerText, divInnerHTML);
+
+	}
 
 	function applyFormat(type) {
 		// We store this div from the DOM in case we click a formatting button 
@@ -56,7 +102,6 @@
 		let storeThisDiv = document.getElementById(clickDivId);
 		const theStoredDiv = storeThisDiv.outerHTML;
 		console.log('theStoredDiv is ', theStoredDiv);
-
 		console.log('storeThisDiv ', storeThisDiv);
 
 		// Get the element where the cursor is located
@@ -110,13 +155,10 @@
 		selection.removeAllRanges();
 		selection.addRange(range);
 
-	
 		// Get the common ancestor
 		// The following is to find the div containing where the mouse was clicked.  
 		// This is done in order to decide whether the commonancestor has an id, if 
 		// it does then we have a div not a strong, italic, or underline
-
-
 		const commonAncestor = range.commonAncestorContainer;
 		console.log('commonAncestor is', commonAncestor);
 
@@ -151,19 +193,20 @@
 				id: commonAncestor.id, 
 				cursor: cursorState, 
 				blobHTML: mygrabbedFromDom});
+			// Make sure that the update to the DOM is transmitted from webview to extension.
+			anotherUpdateToExt();	
 		} else {
 				storeThisDiv.innerHTML = theStoredDiv;
 				performUndoEventFormat('do');
-				console.log('Return now', undoStack);	
+				console.log('Return now', undoStack);
 		}
 
-	
-		
 		console.log('Last on undostack is ', undoStack[undoStack.length - 1]);
 		console.log('range is ', range);
 		
 		console.log('selection is ', selection);
 		console.log(undoStack);
+
 	}
 
 
@@ -197,7 +240,6 @@
 				useThisButtonId = 'defaultBtn';
 			}
 				document.getElementById(useThisButtonId).click(); // Simulate button click
-
 		} 
 	};
 
@@ -209,9 +251,10 @@
 			target = target.parentNode;
 		}
 
-		// clickDivId is global
+		// clickDivId is global, as is mygrabbedFromDom which being a string is passed by value.
+		// We can use this fact to reconstruct an HTMLELement in the function anotherUpdatetoExt.
 		clickDivId = target.id;
-		grabbedFromDom = document.getElementById(clickDivId);
+		let grabbedFromDom = document.getElementById(clickDivId);
 		mygrabbedFromDom = grabbedFromDom.outerHTML;
 		// clickDivId and storedDivId are globally scoped
 
@@ -297,7 +340,7 @@
 			const lastOnStack = undoStack[undoStack.length - 1];
 			// Logic is for smooth user experience depending upon where they left off when undo was pressed
 			if ('cursor' in lastOnStack) {	
-					// the last on stack was from a text alteration
+					// if the last on stack was from a formatting alteration
 
 					console.log('A b/it/u alteration');
 					performUndoEventFormat();
@@ -310,6 +353,8 @@
 				}
 			undoStack.pop();
 			console.log('donkeys', undoStack);
+			// Make sure we update extension from the webview.
+			anotherUpdateToExt();
 		}
 
 	}
@@ -396,7 +441,7 @@
 		// used in the extension in order to trigger the initial population of the webview by the data structure.
         window.addEventListener('load', () => {
             vscode.postMessage({
-                command: 'webViewReady',
+                type: 'webViewReady',
                 text: 'Webview is loaded and ready to receive content.'
             });
         });		

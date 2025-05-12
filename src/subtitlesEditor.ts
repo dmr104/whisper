@@ -59,8 +59,8 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
             readFromFile()
                 .then(jsonData => {
                     // Use the JSON data as needed
-                    vscode.window.showInformationMessage("JSON data read successfully!");
-                    console.log('jsonData is ', jsonData);
+                    // vscode.window.showInformationMessage("JSON data read successfully!");
+                    // console.log('jsonData is ', jsonData);
     
                     // Send a data from the extension to the webview
                     for (let i=0; i < jsonData.segments.length; i++){
@@ -76,10 +76,12 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 
         webviewPanel.webview.onDidReceiveMessage(
             async message => {
-                switch (message.command) {
+                switch (message.type) {
+                    case 'updateText':
+                    // The webview has sent updated text content
+                    console.log(message.id, message.textInner, message.textHTML);
                     case 'webViewReady':
                         vscode.window.showInformationMessage(message.text || 'Webview has signaled it is ready!');
-
                         // Now that the webview is ready, send the initial content to it.                       
                         initalizeWebview();
                         return;                     
