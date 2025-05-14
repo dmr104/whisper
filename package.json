@@ -41,22 +41,26 @@
       {
         "key": "Alt+b",
         "command": "whisperedit.triggerButtonClick",
-        "args": { "command": "boldButtonClick" }
+        "args": { "command": "boldButtonClick" },
+        "when": "activeCustomEditorId == whisperedit.subtitles"
       },
       {
         "key": "Alt+i",
         "command": "whisperedit.triggerButtonClick",
-        "args": { "command": "italicButtonClick" }
+        "args": { "command": "italicButtonClick" },
+        "when": "activeCustomEditorId == whisperedit.subtitles"
       },
       {
         "key": "Alt+u",
         "command": "whisperedit.triggerButtonClick",
-        "args": { "command": "underlineButtonClick" }
+        "args": { "command": "underlineButtonClick" },
+        "when": "activeCustomEditorId == whisperedit.subtitles"
       },
       {
         "key": "Alt+o",
         "command": "whisperedit.triggerButtonClick",
-        "args": { "command": "undoButtonClick" }
+        "args": { "command": "undoButtonClick" },
+        "when": "activeCustomEditorId == whisperedit.subtitles"
       }
     ]
   },

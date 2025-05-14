@@ -1,40 +1,72 @@
 import * as vscode from 'vscode';
 import { getNonce } from './util';
 import { read } from 'fs';
+import { onMyCommandDataEmitter, onMyCommandData } from './extension';
 
 export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider {
-
-	public static register(context: vscode.ExtensionContext): vscode.Disposable {
-		const provider = new subtitlesEditorProvider(context);
+    
+    public static register(context: vscode.ExtensionContext): vscode.Disposable {
+        const provider = new subtitlesEditorProvider(context);
 		const providerRegistration = vscode.window.registerCustomEditorProvider(subtitlesEditorProvider.viewType, provider,
-            { // This is the options object 
+            {   // webviewPanel.options.retainContextWhenHidden;
                 webviewOptions: {
                     retainContextWhenHidden: true,
                     enableFindWidget: true
-                }
+                },
+                supportsMultipleEditorsPerDocument: true, // If you want splits to work seamlessly
             }
         );
 		return providerRegistration;
 	}
 
 	private static readonly viewType = 'whisperedit.subtitles';
+    private eventListenerDisposable: vscode.Disposable | undefined;
 
-	constructor(
-		private readonly context: vscode.ExtensionContext
-	) { }
+	constructor(private readonly context: vscode.ExtensionContext) { 
+    }   
+
+    // Map to store sets of webview panels for each document URI
+    // This allows multiple webviews (e.g., split views) for the same document
+    private documentWebviews = new Map<string, Set<vscode.WebviewPanel>>(); 
 
 	public async resolveCustomTextEditor(
 		document: vscode.TextDocument,
 		webviewPanel: vscode.WebviewPanel,
 		_token: vscode.CancellationToken
 	): Promise<void> { 
-        webviewPanel.options.retainContextWhenHidden;
-		// Setup initial content for the webview
+
+        // Which is our document for our key?
+        const documentUriString = document.uri.toString();
+
+	    // Configure webview options
 		webviewPanel.webview.options = {
 			enableScripts: true
 		};
         webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
 
+        // 5. Listen for the custom event
+        // Dispose of any previous listener for this webviewPanel to avoid leaks
+        if (this.eventListenerDisposable) {
+            this.eventListenerDisposable.dispose();
+        }
+
+        this.eventListenerDisposable = onMyCommandData(args => {
+            // 6. Post the data to the webview
+            webviewPanel.webview.postMessage({
+                command: args.command
+            });
+            console.log('Data received in resolveCustomTextEditor and sent to webview:', args);
+        });
+
+        // Clean up the listener when the webview panel is disposed
+        webviewPanel.onDidDispose(() => {
+            if (this.eventListenerDisposable) {
+                this.eventListenerDisposable.dispose();
+                this.eventListenerDisposable = undefined;
+            }
+        });
+
+	    // Setup initial content for the webview
         async function readFromFile() {
             try {
                 const data = await vscode.workspace.fs.readFile(document.uri);
@@ -74,45 +106,64 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
                 });
         }
 
+        
+        // When a webview wants to modify the data, it uses vscode.postMessage() to send the 
+        // proposed changes to the extension.  The extension listens for these messages using 
+        // webviewPanel.webview.onDidReceiveMessage().
         webviewPanel.webview.onDidReceiveMessage(
             async message => {
                 switch (message.type) {
                     case 'updateText':
-                    // The webview has sent updated text content
+                    // The webview has sent updated text content.  Update that content to our data structure here.
                     console.log(message.id, message.textInner, message.textHTML);
+                    const data = { id: message.id, textInner: message.textInner, textHTML: message.textHTML };
+                    // Now, call the function to process and broadcast the change.
+                    // The webview sends its proposed new state for the entire structure.
+                    this.onChangeDatastructure(documentUriString, data);
+
                     case 'webViewReady':
                         vscode.window.showInformationMessage(message.text || 'Webview has signaled it is ready!');
                         // Now that the webview is ready, send the initial content to it.                       
                         initalizeWebview();
                         return;                     
                 }
-            },
-            undefined,
-            this.context.subscriptions
-        );
+            }
+        );               
 
         // Invoke to bind all our keybindings
-        this.registerCommands(webviewPanel);
+        // subtitlesEditorProvider.registerCommands();
 
     }
     
-    private registerCommands(webviewPanel: vscode.WebviewPanel){
-        // Command to trigger button click
+    private onChangeDatastructure (originatingUri: string, changeData: any) {
+        for (const [uri, mySet] of this.documentWebviews.entries()) {
+            if (uri === originatingUri) {
+                console.log(`Posting update to: ${uri}`);
+                for (const panel of mySet){
+                    panel.webview.postMessage({ perform: 'updateDataStructureInWebviews', data: changeData });
+                }
+            }
+        }
+
+    } 
+
+    public static registerCommands(): vscode.Disposable {
+        const commandDisposables: vscode.Disposable[] = [];
+
+        // Command to trigger button click.  see package.json.  we are sending the args object from it.
             const buttonFromKeyBinding =  vscode.commands.registerCommand('whisperedit.triggerButtonClick', (args) => {
-                webviewPanel.webview.postMessage({ command: args.command });
+                // webviewPanel.webview.postMessage({ command: args.command });
+
+                // 3. Fire the event with the data
+                onMyCommandDataEmitter.fire({ command: args.command });
                 vscode.window.showInformationMessage(`triggerButtonClick executed with options ${args.command}`);
         });
-        
-        // Handle when the webview panel is closed
-        webviewPanel.onDidDispose( () => {
-            // Clean up resources, etc.
-            console.log('Webview panel closed.');
-            buttonFromKeyBinding.dispose();
-        },
-        null,
-        this.context.subscriptions);        
+
+        commandDisposables.push(buttonFromKeyBinding);
+        // Return a single disposable that cleans up all registered commands when disposed
+        // This uses Disposable.from() to combine multiple disposables into one.
+        return vscode.Disposable.from(...commandDisposables);   
     }
-    
     
 
     /**

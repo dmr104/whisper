@@ -35,7 +35,9 @@
 	// Undo button logic
 	document.getElementById("undoBtn").addEventListener("click", () => processOnUndoButton());	
 
-	// Listener for messages from the extension. This function responds ultimately to the keybindings.
+	// Listener for messages from the extension. This function responds ultimately to the keybindings.  Note 
+	// that we simulate a click event within processButtonClick.  Goes  
+	// (keybinding with command.name) -> (args.command) -> (simulate button press in toolbar)
 	window.addEventListener('message', event => {
 		populateSplurge(event);
 		processButtonClick(event);
@@ -219,7 +221,7 @@
 
 	const processButtonClick = function(ev) {
 		const message = ev.data;
-		
+		// message becomes the args object from package.json
 		if (message.command) {
 			console.log('From eventlistener message', message.command);
 			let useThisButtonId = '';
