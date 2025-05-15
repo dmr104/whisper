@@ -25,18 +25,40 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 	constructor(private readonly context: vscode.ExtensionContext) { 
     }   
 
+    private singletonInitWebview: boolean = false;
+    private jsonData: any = null;
+    // The first time a webview is populated we want to read from the file on disk.
+    // The following variable is used to control this singleton behaviour of readfile() within
+    // the function initializeWebView.  We want jsonData to be in a scope which is available to 
+    // all webviews. When a webview is split however we populate the new webview from jsonData.
+    // any change to webview -> matching change in jsonData & matching change in all other webviews.
+    // ----------
+    // | webview |--
+    // ----------   |      ----------          ------
+    //              ------| jsonData |--------| disk |
+    // ----------   |      ----------          ------
+    // | webview |--
+    // ----------
+
+
     // Map to store sets of webview panels for each document URI
     // This allows multiple webviews (e.g., split views) for the same document
     private documentWebviews = new Map<string, Set<vscode.WebviewPanel>>(); 
-
+  
 	public async resolveCustomTextEditor(
 		document: vscode.TextDocument,
 		webviewPanel: vscode.WebviewPanel,
 		_token: vscode.CancellationToken
 	): Promise<void> { 
 
-        // Which is our document for our key?
+        // Which is our document as our key within documentWebViews?
         const documentUriString = document.uri.toString();
+
+        // Add this webview panel to our tracking
+        if (!this.documentWebviews.has(documentUriString)) {
+            this.documentWebviews.set(documentUriString, new Set());
+        }
+        this.documentWebviews.get(documentUriString)!.add(webviewPanel);
 
 	    // Configure webview options
 		webviewPanel.webview.options = {
@@ -58,23 +80,90 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
             console.log('Data received in resolveCustomTextEditor and sent to webview:', args);
         });
 
-        // Clean up the listener when the webview panel is disposed
         webviewPanel.onDidDispose(() => {
+            // Clean up the listener when the webview panel is disposed
             if (this.eventListenerDisposable) {
                 this.eventListenerDisposable.dispose();
                 this.eventListenerDisposable = undefined;
             }
+            // Clean up when the panel is disposed
+            const webviewSet = this.documentWebviews.get(documentUriString);
+            if (webviewSet) {
+                webviewSet.delete(webviewPanel);
+                if (webviewSet.size === 0) {
+                    this.documentWebviews.delete(documentUriString);
+                }
+            } 
         });
+ 
+        
+        // When a webview wants to modify the data, it uses vscode.postMessage() to send the 
+        // proposed changes to the extension.  The extension listens for these messages using 
+        // webviewPanel.webview.onDidReceiveMessage().
+        webviewPanel.webview.onDidReceiveMessage(
+            async message => {
+                switch (message.type) {
+                    case 'updateText':
+                    console.log('MESSAGE is ', message);
+                    // The webview has sent updated text content.  Update that content to our data structure here.
+                    const data = { id: message.id, textInner: message.textInner, textHTML: message.textHTML };
+                    // Now, call the function to process and broadcast the change.
+                    this.onChangeFromWebview(documentUriString, webviewPanel, data);
+                    return;
 
+                    case 'webViewReady':
+                        vscode.window.showInformationMessage(message.text || 'Webview has signaled it is ready!');
+                        // Now that the webview is ready, send the initial content to it.                       
+                        this.initalizeWebview(document, webviewPanel);
+                        return;                     
+                }
+            }
+        );               
+
+        // Invoke to bind all our keybindings
+        // subtitlesEditorProvider.registerCommands();
+
+    }
+
+       public initalizeWebview (document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel) {
+            if (!this.singletonInitWebview){
+                this.readFromFile(document)
+                    .then(myJsonData => {
+                        // Use the JSON data as needed
+                        vscode.window.showInformationMessage("JSON data read successfully first time!");
+                        // console.log('myJsonData is ', myJsonData);
+        
+                        // Send a data from the extension to the webview
+                        for (let i=0; i < myJsonData.segments.length; i++){
+                            const seg = myJsonData.segments[i];
+                            webviewPanel.webview.postMessage({ segment: seg.text, id: seg.id});
+                        }
+                    })
+                    .catch(error => {
+                        vscode.window.showErrorMessage("Failed to read JSON data.");
+                        console.error("Error reading JSON data:", error);
+                    });
+            } else {
+                    vscode.window.showInformationMessage("JSON data read successfully again!");
+                    for (let i=0; i < this.jsonData.segments.length; i++){
+                        const seg = this.jsonData.segments[i];
+                        webviewPanel.webview.postMessage({ segment: seg.text, id: seg.id});
+                    }               
+                this.singletonInitWebview = true;
+            }
+        }
+    
 	    // Setup initial content for the webview
-        async function readFromFile() {
+        public async readFromFile(document: vscode.TextDocument): Promise<any> {
             try {
                 const data = await vscode.workspace.fs.readFile(document.uri);
 
                 // Read the JSON file from whisper
                 const jsonString = data.toString();
-                const jsonData = JSON.parse(jsonString);
-                return jsonData;
+                const myJsonData = JSON.parse(jsonString);
+                // Make the myJsonData passed by reference to wider scope jsonData to be shared among webviews
+                this.jsonData = myJsonData;
+                return myJsonData;
             } catch (error: unknown) {
                 // Use type checking to handle the error
                 if (error instanceof Error) {
@@ -86,61 +175,16 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
                 throw error; // Rethrow the error for further handling
             }
         }
-
-        async function initalizeWebview () {
-            readFromFile()
-                .then(jsonData => {
-                    // Use the JSON data as needed
-                    // vscode.window.showInformationMessage("JSON data read successfully!");
-                    // console.log('jsonData is ', jsonData);
     
-                    // Send a data from the extension to the webview
-                    for (let i=0; i < jsonData.segments.length; i++){
-                        const seg = jsonData.segments[i];
-                        webviewPanel.webview.postMessage({ segment: seg.text, id: seg.id});
-                    }
-                })
-                .catch(error => {
-                    vscode.window.showErrorMessage("Failed to read JSON data.");
-                    console.error("Error reading JSON data:", error);
-                });
-        }
-
-        
-        // When a webview wants to modify the data, it uses vscode.postMessage() to send the 
-        // proposed changes to the extension.  The extension listens for these messages using 
-        // webviewPanel.webview.onDidReceiveMessage().
-        webviewPanel.webview.onDidReceiveMessage(
-            async message => {
-                switch (message.type) {
-                    case 'updateText':
-                    // The webview has sent updated text content.  Update that content to our data structure here.
-                    console.log(message.id, message.textInner, message.textHTML);
-                    const data = { id: message.id, textInner: message.textInner, textHTML: message.textHTML };
-                    // Now, call the function to process and broadcast the change.
-                    // The webview sends its proposed new state for the entire structure.
-                    this.onChangeDatastructure(documentUriString, data);
-
-                    case 'webViewReady':
-                        vscode.window.showInformationMessage(message.text || 'Webview has signaled it is ready!');
-                        // Now that the webview is ready, send the initial content to it.                       
-                        initalizeWebview();
-                        return;                     
-                }
-            }
-        );               
-
-        // Invoke to bind all our keybindings
-        // subtitlesEditorProvider.registerCommands();
-
-    }
-    
-    private onChangeDatastructure (originatingUri: string, changeData: any) {
+    private onChangeFromWebview (originatingUri: string, originatingWebview: vscode.WebviewPanel, changeData: any) {
         for (const [uri, mySet] of this.documentWebviews.entries()) {
             if (uri === originatingUri) {
-                console.log(`Posting update to: ${uri}`);
+                console.log(`Posting update to: ${uri}, changeData is ${changeData.textHTML}`);
                 for (const panel of mySet){
-                    panel.webview.postMessage({ perform: 'updateDataStructureInWebviews', data: changeData });
+                    if (panel !== originatingWebview) {
+                        console.log('TRigger this. ');
+                        panel.webview.postMessage({ perform: 'updateDataStructureInWebviews', data: changeData });
+                    }
                 }
             }
         }
@@ -211,7 +255,7 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 			</head>
 			<body>
                 <div id="toolbar">
-                    <button id="changeBtn">Toggle view</button>
+                    <button id="changeBtn">Toggle</button>
                     <button id="boldBtn">Bold</button>
                     <button id="italicBtn">Italic</button>
                     <button id="underlineBtn">Underline</button>

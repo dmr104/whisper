@@ -39,6 +39,11 @@
     ],
     "keybindings": [
       {
+        "command": "workbench.action.splitEditor",
+        "key": "Alt-n",
+        "when": "activeCustomEditorId == whisperedit.subtitles"
+      },
+      {
         "key": "Alt+b",
         "command": "whisperedit.triggerButtonClick",
         "args": { "command": "boldButtonClick" },

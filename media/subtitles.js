@@ -39,8 +39,19 @@
 	// that we simulate a click event within processButtonClick.  Goes  
 	// (keybinding with command.name) -> (args.command) -> (simulate button press in toolbar)
 	window.addEventListener('message', event => {
-		populateSplurge(event);
-		processButtonClick(event);
+		const message = event.data;
+		console.log('Aaardvarks event.data is ', message);
+		if (message.command){
+			console.log('bananas ', message.command);
+			processButtonClick(message.command);
+		}
+		if (message.segment){
+			addSegmentToSplurge(message.segment, message.id);
+		}
+		// if (message.perform){
+		// 	console.log('MESSAGE PERFORM is ', message.perform);
+
+		// }
 	});
 
 	splurgeContainer.addEventListener('input', (e) => {
@@ -212,20 +223,12 @@
 	}
 
 
-	const populateSplurge = function(ev) {
-		const message = ev.data;
-		if (message.segment){
-			addSegmentToSplurge(message.segment, message.id);
-		}
-	};
+	const processButtonClick = function(args) {
+		// message.command is the args object from package.json
 
-	const processButtonClick = function(ev) {
-		const message = ev.data;
-		// message becomes the args object from package.json
-		if (message.command) {
-			console.log('From eventlistener message', message.command);
+			console.log('From eventlistener message', args);
 			let useThisButtonId = '';
-			switch(message.command) {
+			switch(args) {
 			case 'boldButtonClick':
 				useThisButtonId = 'boldBtn';
 				break;
@@ -242,7 +245,7 @@
 				useThisButtonId = 'defaultBtn';
 			}
 				document.getElementById(useThisButtonId).click(); // Simulate button click
-		} 
+		
 	};
 
 	const processMouseClick = function (event) {
@@ -325,7 +328,7 @@
 		for (let i = 0; i < innerDivs.length; i++) {
 			innerDivs[i].classList.remove('no-decoration'); // Add the class
 			};
-		grabbedButton.textContent='Change view';
+		grabbedButton.textContent='Toggle';
 		changedView=false;	
 		}
 	}
@@ -441,11 +444,11 @@
 
 		// The following eventListener is to be fired when then page has totally loaded.  The message will be 
 		// used in the extension in order to trigger the initial population of the webview by the data structure.
-        window.addEventListener('load', () => {
-            vscode.postMessage({
-                type: 'webViewReady',
-                text: 'Webview is loaded and ready to receive content.'
-            });
+        window.addEventListener('load', () => {			
+			vscode.postMessage({
+				type: 'webViewReady',
+				text: 'Webview is loaded and ready to receive content.'
+			});
         });		
 
 }());
