@@ -25,16 +25,8 @@
     ],
     "commands": [
       {
-        "command": "whisperedit.helloWorld",
-        "title": "Hello David"
-      },
-      {
-        "command": "whisperedit.openMultipleFiles",
-        "title": "Open multiple files for WhisperEdit"
-      },
-      {
         "command": "whisperedit.triggerButtonClick",
-        "title": "make bold highlighted text"
+        "title": "Whisperedit: trigger button click"
       }
     ],
     "keybindings": [

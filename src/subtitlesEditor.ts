@@ -8,9 +8,9 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
     public static register(context: vscode.ExtensionContext): vscode.Disposable {
         const provider = new subtitlesEditorProvider(context);
 		const providerRegistration = vscode.window.registerCustomEditorProvider(subtitlesEditorProvider.viewType, provider,
-            {   // webviewPanel.options.retainContextWhenHidden;
+            {   // webviewPanelOptions
                 webviewOptions: {
-                    retainContextWhenHidden: true,
+                    retainContextWhenHidden: false,
                     enableFindWidget: true
                 },
                 supportsMultipleEditorsPerDocument: true, // If you want splits to work seamlessly
@@ -60,7 +60,7 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
         }
         this.documentWebviews.get(documentUriString)!.add(webviewPanel);
 
-	    // Configure webview options
+	    // Configure WebviewOptions
 		webviewPanel.webview.options = {
 			enableScripts: true
 		};

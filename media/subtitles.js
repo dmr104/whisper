@@ -16,8 +16,10 @@
 	// The following stores the outerhtml of a text element.  used on mousedown.
 	let mygrabbedFromDom;
 
+	
 	// the following flag is used to control the logic of the change style button press
 	let changedView=false;	
+	
 
 	// The following is used in the function addSegmentToSplurge
 	const splurgeContainer = document.getElementById('splurge');
@@ -40,7 +42,7 @@
 	// (keybinding with command.name) -> (args.command) -> (simulate button press in toolbar)
 	window.addEventListener('message', event => {
 		const message = event.data;
-		console.log('Aaardvarks event.data is ', message);
+		// console.log('Aaardvarks event.data is ', message);
 		if (message.command){
 			console.log('bananas ', message.command);
 			processButtonClick(message.command);
@@ -129,7 +131,7 @@
 
 		// Store the start and end positions.  It is important to realise that we grab a node from the parent using
 		// parent.childNodes[i], but first we need to obtain the parent from where the cursor was located
-	    // The following produces the actual text of the node.  use .parent to obtain the parent.
+		// The following produces the actual text of the node.  use .parent to obtain the parent.
 		const startContainer = range.startContainer;
 		const startOffset = range.startOffset;
 		const endContainer = range.endContainer;
@@ -191,7 +193,7 @@
 
 		// Store the initial cursor position
 		const cursorState = {
-	        startContainer: startContainer,
+			startContainer: startContainer,
 			startOffset: startOffset,
 			endContainer: endContainer,
 			endOffset: endOffset,
@@ -270,7 +272,7 @@
 	};
 
 	const processInput = function (event) {
-        
+		
 		const target = event.target;
 		const inputDivId= target.id;
 
@@ -298,14 +300,14 @@
 		
 	};
 
-    function addSegmentToSplurge(mytext, id) {
-        const segment = document.createElement('div');
-        segment.contentEditable="true";
-        segment.className = 'segment';
+	function addSegmentToSplurge(mytext, id) {
+		const segment = document.createElement('div');
+		segment.contentEditable="true";
+		segment.className = 'segment';
 		segment.id = id;
-        segment.innerText = mytext;
-        splurgeContainer.appendChild(segment);
-    }
+		segment.innerText = mytext;
+		splurgeContainer.appendChild(segment);
+	}
 	
 
 	function applyChangeButton () {
@@ -444,11 +446,11 @@
 
 		// The following eventListener is to be fired when then page has totally loaded.  The message will be 
 		// used in the extension in order to trigger the initial population of the webview by the data structure.
-        window.addEventListener('load', () => {			
+		window.addEventListener('load', () => {			
 			vscode.postMessage({
 				type: 'webViewReady',
 				text: 'Webview is loaded and ready to receive content.'
 			});
-        });		
+		});		
 
 }());
