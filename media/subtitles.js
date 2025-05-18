@@ -11,7 +11,7 @@
 	let storedDivId = null;
 
 	// The following is used to pass the event.target.id of where the mouse is clicked to applyFormat
-	let clickDivId;
+	let clickDivId = JSON.parse(localStorage.getItem('clickDivId')) || undefined;
 
 	// The following stores the outerhtml of a text element.  used on mousedown.
 	let mygrabbedFromDom;
@@ -261,6 +261,8 @@
 		// clickDivId is global, as is mygrabbedFromDom which being a string is passed by value.
 		// We can use this fact to reconstruct an HTMLELement in the function anotherUpdatetoExt.
 		clickDivId = target.id;
+		// Here we store this global variable to persist it in the webview 
+		localStorage.setItem('clickDivId', JSON.stringify(clickDivId));
 		let grabbedFromDom = document.getElementById(clickDivId);
 		mygrabbedFromDom = grabbedFromDom.outerHTML;
 		// clickDivId and storedDivId are globally scoped
@@ -446,11 +448,27 @@
 
 		// The following eventListener is to be fired when then page has totally loaded.  The message will be 
 		// used in the extension in order to trigger the initial population of the webview by the data structure.
-		window.addEventListener('load', () => {			
+
+		const doSomething = () => {			
 			vscode.postMessage({
 				type: 'webViewReady',
 				text: 'Webview is loaded and ready to receive content.'
 			});
-		});		
+		};
+
+		if (document.readyState === "loading") {
+		// Loading hasn't finished yet
+		document.addEventListener("DOMContentLoaded", doSomething);
+		} else {
+		// `DOMContentLoaded` has already fired
+		doSomething();
+		}
+
+		// window.addEventListener('load', () => {			
+		// 	vscode.postMessage({
+		// 		type: 'webViewReady',
+		// 		text: 'Webview is loaded and ready to receive content.'
+		// 	});
+		// });		
 
 }());

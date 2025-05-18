@@ -2,6 +2,12 @@ import * as vscode from 'vscode';
 import { getNonce } from './util';
 import { read } from 'fs';
 import { onMyCommandDataEmitter, onMyCommandData } from './extension';
+import { setActivePanel, getActivePanel } from './extension';
+
+
+// Map to store sets of webview panels for each document URI
+// This allows multiple webviews (e.g., split views) for the same document
+let documentWebviews = new Map<string, Set<vscode.WebviewPanel>>(); 
 
 export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider {
     
@@ -22,6 +28,7 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 	private static readonly viewType = 'whisperedit.subtitles';
     private eventListenerDisposable: vscode.Disposable | undefined;
 
+
 	constructor(private readonly context: vscode.ExtensionContext) { 
     }   
 
@@ -39,11 +46,6 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
     // ----------   |      ----------          ------
     // | webview |--
     // ----------
-
-
-    // Map to store sets of webview panels for each document URI
-    // This allows multiple webviews (e.g., split views) for the same document
-    private documentWebviews = new Map<string, Set<vscode.WebviewPanel>>(); 
   
 	public async resolveCustomTextEditor(
 		document: vscode.TextDocument,
@@ -55,10 +57,10 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
         const documentUriString = document.uri.toString();
 
         // Add this webview panel to our tracking
-        if (!this.documentWebviews.has(documentUriString)) {
-            this.documentWebviews.set(documentUriString, new Set());
+        if (!documentWebviews.has(documentUriString)) {
+            documentWebviews.set(documentUriString, new Set());
         }
-        this.documentWebviews.get(documentUriString)!.add(webviewPanel);
+        documentWebviews.get(documentUriString)!.add(webviewPanel);
 
 	    // Configure WebviewOptions
 		webviewPanel.webview.options = {
@@ -66,19 +68,67 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 		};
         webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
 
+        // Mark as active immediately if this is the first one shown.  The resolveCustomEditor is called
+        // every time a webview panel is created
+        setActivePanel(webviewPanel); 
+        
+        webviewPanel.onDidChangeViewState(e => {
+            console.log('getActivePanel is', e.webviewPanel.webview);
+
+            if (e.webviewPanel.active){
+                setActivePanel(e.webviewPanel);
+            }   else if (getActivePanel() === e.webviewPanel) {
+                setActivePanel(undefined);        // it lost focus
+            }
+        });
+        
         // 5. Listen for the custom event
         // Dispose of any previous listener for this webviewPanel to avoid leaks
         if (this.eventListenerDisposable) {
             this.eventListenerDisposable.dispose();
         }
 
-        this.eventListenerDisposable = onMyCommandData(args => {
-            // 6. Post the data to the webview
-            webviewPanel.webview.postMessage({
-                command: args.command
-            });
-            console.log('Data received in resolveCustomTextEditor and sent to webview:', args);
-        });
+        // Receive the event and its data from a command firing onMyCommandDataEmitter from registerCommands. 
+        // Now webview DOES exist, so select the correct webview (the one which is currently focused) and pass
+        // the data from package.json (received via onMyCommandData) to the webview via a postMessage.
+
+        const myListener = (args: any) => {
+            // 6. Post the data to the webviews
+            const myActivePanel = getActivePanel();
+            if (!myActivePanel){
+                vscode.window.showWarningMessage(
+                    'No webview is currently focused.'
+                );
+                return;
+            }
+
+            if (myActivePanel){
+                myActivePanel.webview.postMessage({
+                            command: args.command
+                        });                
+                vscode.window.showInformationMessage(
+                        `Sent "${args.command}" to the focused webview.`
+                        );
+                              
+            } else {
+                vscode.window.showWarningMessage('No active webview panel. CHERRIES.');
+            }
+
+            console.log('Data received in resolveCustomTextEditor and sent to webviews:', args);
+        };
+
+        // Register the listener and add it to the context subscriptions
+        this.eventListenerDisposable = onMyCommandData(myListener);
+        this.context.subscriptions.push(this.eventListenerDisposable);
+
+        // Add to context for automatic disposal when extension is deactivated
+        this.context.subscriptions.push({ 
+            dispose: () => {
+                // Remove the listener when the extension is deactivated
+                onMyCommandData(myListener);
+            }});
+
+
 
         webviewPanel.onDidDispose(() => {
             // Clean up the listener when the webview panel is disposed
@@ -86,13 +136,17 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
                 this.eventListenerDisposable.dispose();
                 this.eventListenerDisposable = undefined;
             }
-            // Clean up when the panel is disposed
-            const webviewSet = this.documentWebviews.get(documentUriString);
+            // Clean up webviewSet when the panel is disposed
+            const webviewSet = documentWebviews.get(documentUriString);
             if (webviewSet) {
                 webviewSet.delete(webviewPanel);
                 if (webviewSet.size === 0) {
-                    this.documentWebviews.delete(documentUriString);
+                    documentWebviews.delete(documentUriString);
                 }
+            }
+            // cleanup _activePanel which is a global variable.
+            if (getActivePanel() === webviewPanel){
+                setActivePanel(undefined);
             } 
         });
  
@@ -120,8 +174,6 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
             }
         );               
 
-        // Invoke to bind all our keybindings
-        // subtitlesEditorProvider.registerCommands();
 
     }
 
@@ -177,7 +229,7 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
         }
     
     private onChangeFromWebview (originatingUri: string, originatingWebview: vscode.WebviewPanel, changeData: any) {
-        for (const [uri, mySet] of this.documentWebviews.entries()) {
+        for (const [uri, mySet] of documentWebviews.entries()) {
             if (uri === originatingUri) {
                 console.log(`Posting update to: ${uri}, changeData is ${changeData.textHTML}`);
                 for (const panel of mySet){
@@ -191,6 +243,8 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
 
     } 
 
+    // At this time of registration, document URI does NOT exist, so we fire onMyCommandEmitter with the data from package.json
+    // Later in resolveCustomEditor it does exist.
     public static registerCommands(): vscode.Disposable {
         const commandDisposables: vscode.Disposable[] = [];
 
@@ -201,6 +255,7 @@ export class subtitlesEditorProvider implements vscode.CustomTextEditorProvider 
                 // 3. Fire the event with the data
                 onMyCommandDataEmitter.fire({ command: args.command });
                 vscode.window.showInformationMessage(`triggerButtonClick executed with options ${args.command}`);
+                
         });
 
         commandDisposables.push(buttonFromKeyBinding);

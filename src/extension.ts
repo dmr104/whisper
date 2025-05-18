@@ -8,6 +8,16 @@ import * as path from 'path';
 export const onMyCommandDataEmitter = new vscode.EventEmitter<any>();
 export const onMyCommandData = onMyCommandDataEmitter.event;
 
+let _activePanel: vscode.WebviewPanel | undefined;
+
+export function setActivePanel(panel: vscode.WebviewPanel | undefined) {
+    _activePanel = panel;
+}
+
+export function getActivePanel(): vscode.WebviewPanel | undefined {
+    return _activePanel;
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
