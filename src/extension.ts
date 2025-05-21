@@ -1,37 +1,108 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { subtitlesEditorProvider } from './subtitlesEditor';
 import * as path from 'path';
-
-// 1. Define an EventEmitter to handle your custom event
+import { SubtitlesPanel } from './subtitlesPanel';
+// Define an EventEmitter to handle your custom event
 export const onMyCommandDataEmitter = new vscode.EventEmitter<any>();
 export const onMyCommandData = onMyCommandDataEmitter.event;
 
-let _activePanel: vscode.WebviewPanel | undefined;
+export function activate(context: vscode.ExtensionContext){
+    vscode.window.showInformationMessage('BOOGLIES');
+    console.log('JSON Webview extension is active');
 
-export function setActivePanel(panel: vscode.WebviewPanel | undefined) {
-    _activePanel = panel;
-}
+    context.subscriptions.push(
+        vscode.workspace.onDidOpenTextDocument((document: vscode.TextDocument) => {
+            if (document.languageId === 'json' && document.uri.scheme === 'file') {
+                // We cannot 
+                // const instantiation = new SubtitlesPanel(webviewPanel, context)
+                // here because the webviewPanel does not exist yet.  Therefore we need to use a class method 
+                // and define showWebview as public static within SubtitlesPanel class. 
+                SubtitlesPanel.createAndShowWebview(document, context);
+                // showWebview(document, context);
+            }
+        })       
+    );
 
-export function getActivePanel(): vscode.WebviewPanel | undefined {
-    return _activePanel;
-}
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+    context.subscriptions.push(
+        vscode.commands.registerCommand('whisperedit.action.splitWebview', () => {
+
+        })
+    );
+
+    context.subscriptions.push(
+        // Command to trigger button click.  see package.json.  we are sending the args object from it.
+		vscode.commands.registerCommand('whisperedit.triggerButtonClick', (args) => {
 	
-	console.log('Congratulations, your extension "whisperedit" is now active!');
-
-	// 2. Register your command
-	context.subscriptions.push(subtitlesEditorProvider.registerCommands());
-	// 4. Register the CustomTextEditorProvider
-	context.subscriptions.push(subtitlesEditorProvider.register(context));
+			// Fire the event with the data
+			onMyCommandDataEmitter.fire({ command: args.command });
+			vscode.window.showInformationMessage(`triggerButtonClick executed with options ${args.command}`);
+			
+	})
+    );
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {
-    // Clean up the event emitter if necessary, though usually not explicitly needed for vscode.EventEmitter
-    onMyCommandDataEmitter.dispose();	
+
+
+export function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewPanelOptions & vscode.WebviewOptions{
+	return {
+            // Controls whether the find widget is enabled in the panel.
+            enableFindWidget: true,
+            // Enable javascript in the webview
+			enableScripts: true,
+            // And restrict the webview to only loading content from our extension's `media` directory.
+		    localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+		};
 }
+
+function showWebview(document: vscode.TextDocument, context: vscode.ExtensionContext) {
+    const panel = vscode.window.createWebviewPanel(
+        'whisperedit.viewer',
+        'subtitles viewer',
+        vscode.ViewColumn.Beside,
+        getWebviewOptions(context.extensionUri)
+    );
+
+    // Base HTML skeleton with script waiting for postMessage
+    panel.webview.html = getWebviewHtml(panel.webview);
+
+    panel.webview.onDidReceiveMessage((message) => {
+        if (message.command === 'ready') {
+            panel.webview.postMessage({
+                command: 'load',
+                uri: document.uri.toString(),
+                content: document.getText()
+            });
+        }
+    });
+}
+
+function getWebviewHtml(webview: vscode.Webview): string {
+    return /* html */ `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>JSON Webview</title>
+        </head>
+        <body>
+            <h2>JSON Viewer</h2>
+            <pre id="jsonContent">Loading...</pre>
+            <script>
+                const vscode = acquireVsCodeApi();
+                vscode.postMessage({ command: 'ready' });
+
+                window.addEventListener('message', event => {
+                    const { command, content, uri } = event.data;
+                    if (command === 'load') {
+                        document.getElementById('jsonContent').textContent =
+                            'File: ' + uri + '\\n\\n' + content;
+                    }
+                });
+            </script>
+        </body>
+        </html>`;
+}
+

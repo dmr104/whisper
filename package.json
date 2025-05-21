@@ -9,55 +9,57 @@
   "categories": [
     "Other"
   ],
-  "activationEvents":  [],
+  "activationEvents":  [
+    "onWebviewPanel:whisperedit.subtitlesPanel"
+  ],
   "main": "./out/extension.js",
   "contributes": {
-    "customEditors": [
-			{
-				"viewType": "whisperedit.subtitles",
-				"displayName": "Open multiple files",
-				"selector": [
-					{
-						"filenamePattern": "*.json"
-					}
-				]
-			}
-    ],
     "commands": [
+      {
+        "command": "whisperedit.openSubtitles",
+        "title": "Open subtitles webview",
+        "key": "Alt-p",
+        "when": "activeCustomEditorId == whisperedit.subtitles"
+      },
       {
         "command": "whisperedit.triggerButtonClick",
         "title": "Whisperedit: trigger button click"
       }
     ],
+    "views": {
+      "explorer": [
+        {
+          "id": "whisperedit.subtitlesPanel",
+          "name": "Subtitles",
+          "icon": "./media/icon.svg"
+        }
+      ]
+    },
     "keybindings": [
       {
-        "command": "workbench.action.splitEditor",
-        "key": "Alt-n",
-        "when": "activeCustomEditorId == whisperedit.subtitles"
+        "command": "whisperedit.action.splitWebview",
+        "title": "split the webview",
+        "key": "Alt-n"
       },
       {
         "key": "Alt+b",
         "command": "whisperedit.triggerButtonClick",
-        "args": { "command": "boldButtonClick" },
-        "when": "activeCustomEditorId == whisperedit.subtitles"
+        "args": { "command": "boldButtonClick" }
       },
       {
         "key": "Alt+i",
         "command": "whisperedit.triggerButtonClick",
-        "args": { "command": "italicButtonClick" },
-        "when": "activeCustomEditorId == whisperedit.subtitles"
+        "args": { "command": "italicButtonClick" }
       },
       {
         "key": "Alt+u",
         "command": "whisperedit.triggerButtonClick",
-        "args": { "command": "underlineButtonClick" },
-        "when": "activeCustomEditorId == whisperedit.subtitles"
+        "args": { "command": "underlineButtonClick" }
       },
       {
         "key": "Alt+o",
         "command": "whisperedit.triggerButtonClick",
-        "args": { "command": "undoButtonClick" },
-        "when": "activeCustomEditorId == whisperedit.subtitles"
+        "args": { "command": "undoButtonClick" }
       }
     ]
   },

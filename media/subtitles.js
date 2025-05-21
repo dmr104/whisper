@@ -60,7 +60,7 @@
 		processInput(e);
 
 		// Make sure we send an update to the extension from the webView every time a key is input.
-		updateToExt(e);
+	    updateToExt(e);
 	});
 	
 	splurgeContainer.addEventListener('mousedown', (e) => {
@@ -401,7 +401,7 @@
 
 
 			const mydiv = document.getElementById(fromStack.id);
-			const grabbedDOM = mydiv.firstChild;
+			// const grabbedDOM = mydiv.firstChild;
 
 			const children = mydiv.childNodes;
 			console.log('children', children);
@@ -415,7 +415,7 @@
 			range.setStart(selectedChild, cursorState.startOffset);
 			range.setEnd(selectedChild, cursorState.endOffset);
 
-			console.log('grabbedDOM ', grabbedDOM);
+			// console.log('grabbedDOM ', grabbedDOM);
 			console.log('range is ', range);
 			// Clear any existing selection and apply the new range
 			// const selection = window.getSelection();
