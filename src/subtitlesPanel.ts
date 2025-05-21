@@ -70,7 +70,7 @@ export class SubtitlesPanel {
         
         panel.webview.onDidReceiveMessage((message) => {
             if (message = 'webViewReady') {
-                // Populate the DOM of the first opened webview
+                // Populate the DOM of the first opened webview. This is a singleton.
                 mySubtitlesPanel._initializeTheFirstWebview(document, panel);                
             }
         });

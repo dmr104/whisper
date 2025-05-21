@@ -17,9 +17,7 @@
     "commands": [
       {
         "command": "whisperedit.openSubtitles",
-        "title": "Open subtitles webview",
-        "key": "Alt-p",
-        "when": "activeCustomEditorId == whisperedit.subtitles"
+        "title": "Open subtitles webview"
       },
       {
         "command": "whisperedit.triggerButtonClick",
@@ -36,6 +34,11 @@
       ]
     },
     "keybindings": [
+      {
+        "command": "whisperedit.openSubtitles",
+        "title": "Open subtitles webview",
+        "key": "Alt-p"
+      },
       {
         "command": "whisperedit.action.splitWebview",
         "title": "split the webview",

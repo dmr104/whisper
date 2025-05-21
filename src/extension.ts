@@ -41,6 +41,21 @@ export function activate(context: vscode.ExtensionContext){
 			
 	})
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand("whisperedit.openSubtitles", () =>{
+            const activeEditor = vscode.window.activeTextEditor;
+            if (activeEditor) {
+                const document = activeEditor.document;
+                // Now you can access the document
+                SubtitlesPanel.createAndShowWebview(document, context);
+                return document;
+            } else {
+                vscode.window.showInformationMessage('No active text editor found.');
+                return null;
+            }
+        })
+    );
 }
 
 
