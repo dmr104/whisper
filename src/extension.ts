@@ -3,6 +3,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { SubtitlesPanel } from './subtitlesPanel';
+import { SubtitlesWebviewViewProvider } from './SubtitlesWebviewProvider';
+
 // Define an EventEmitter to handle your custom event
 export const onMyCommandDataEmitter = new vscode.EventEmitter<any>();
 export const onMyCommandData = onMyCommandDataEmitter.event;
@@ -56,9 +58,11 @@ export function activate(context: vscode.ExtensionContext){
             }
         })
     );
+
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider('subtitlesWebviewView', new SubtitlesWebviewViewProvider())
+    );
 }
-
-
 
 export function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewPanelOptions & vscode.WebviewOptions{
 	return {
@@ -70,6 +74,10 @@ export function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewPanel
 		    localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
 		};
 }
+
+
+
+// *********************************  delete from here
 
 function showWebview(document: vscode.TextDocument, context: vscode.ExtensionContext) {
     const panel = vscode.window.createWebviewPanel(

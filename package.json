@@ -27,8 +27,10 @@
     "views": {
       "explorer": [
         {
-          "id": "whisperedit.subtitlesPanel",
+          "id": "subtitlesWebviewView",
           "name": "Subtitles",
+          "type": "webview",
+          "when": "explorerViewletVisible",
           "icon": "./media/icon.svg"
         }
       ]
