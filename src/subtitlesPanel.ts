@@ -13,7 +13,7 @@ export class SubtitlesPanel {
     private readonly _document: vscode.TextDocument;
 	private _disposables: vscode.Disposable[] = [];
 
-    private singletonInitWebview: boolean = false;
+    private _singletonInitWebview: boolean = false;
     private jsonData: any = null;
     // The first time a webview is populated we want to read from the file on disk.
     // The following variable is used to control this singleton behaviour of readfile() within
@@ -154,7 +154,8 @@ export class SubtitlesPanel {
 	}
 
     private _initializeTheFirstWebview (document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel) {
-        if (!this.singletonInitWebview){
+        console.log("this.singletonInitWebview", this._singletonInitWebview);
+        if (!this._singletonInitWebview){
             this._readFromFile(document)
                 .then(myJsonData => {
                     // Use the JSON data as needed
@@ -171,14 +172,8 @@ export class SubtitlesPanel {
                     vscode.window.showErrorMessage("Failed to read JSON data.");
                     console.error("Error reading JSON data:", error);
                 });
-        } else {
-                vscode.window.showInformationMessage("JSON data read twice!");
-                for (let i=0; i < this.jsonData.segments.length; i++){
-                    const seg = this.jsonData.segments[i];
-                    webviewPanel.webview.postMessage({ segment: seg.text, id: seg.id});
-                }               
-            this.singletonInitWebview = true;
-        }
+        } 
+        this._singletonInitWebview = true;
     }
 
         // Setup initial content for the webview
