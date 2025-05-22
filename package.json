@@ -17,11 +17,19 @@
     "commands": [
       {
         "command": "whisperedit.openSubtitles",
-        "title": "Open subtitles webview"
+        "title": "Whisperedit: Open subtitles webview"
+      },
+      {
+        "command": "whisperedit.splitWebview",
+        "title": "Whisperedit: split the Webview"
       },
       {
         "command": "whisperedit.triggerButtonClick",
         "title": "Whisperedit: trigger button click"
+      },
+      {
+        "command": "whisperedit.updateWebviewData",
+        "title": "Whisperedit: Update My Webview Data"       
       }
     ],
     "views": {
@@ -38,12 +46,10 @@
     "keybindings": [
       {
         "command": "whisperedit.openSubtitles",
-        "title": "Open subtitles webview",
         "key": "Alt-p"
       },
       {
-        "command": "whisperedit.action.splitWebview",
-        "title": "split the webview",
+        "command": "whisperedit.splitWebview",
         "key": "Alt-n"
       },
       {

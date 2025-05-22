@@ -1,0 +1,87 @@
+body {
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-editor-foreground);
+  background-color: var(--vscode-editor-background);
+  padding: 10px;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--vscode-textLink-foreground);
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+p {
+  margin-bottom: 10px;
+}
+
+a {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: 1px solid var(--vscode-button-border, transparent);
+  padding: 8px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+button:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+input[type="text"],
+textarea {
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  padding: 8px;
+  border-radius: 3px;
+  width: calc(100% - 18px); /* Account for padding and border */
+  margin-bottom: 10px;
+}
+
+input[type="text"]::placeholder,
+textarea::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+ul, ol {
+  margin-left: 20px;
+  margin-bottom: 10px;
+}
+
+li {
+  margin-bottom: 5px;
+}
+
+/* Example of a custom class */
+.data-item {
+  border: 1px solid var(--vscode-editorWidget-border);
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  background-color: var(--vscode-sideBar-background); /* Or another suitable background */
+}
+
+.data-item-title {
+  font-weight: bold;
+  color: var(--vscode-list-highlightForeground);
+}
+
+.error-message {
+  color: var(--vscode-editorError-foreground);
+  background-color: rgba(255, 0, 0, 0.1); /* Light red background for errors */
+  padding: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--vscode-editorError-foreground);
+}

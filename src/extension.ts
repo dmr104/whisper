@@ -20,28 +20,10 @@ export function activate(context: vscode.ExtensionContext){
                 // const instantiation = new SubtitlesPanel(webviewPanel, context)
                 // here because the webviewPanel does not exist yet.  Therefore we need to use a class method 
                 // and define showWebview as public static within SubtitlesPanel class. 
-                SubtitlesPanel.createAndShowWebview(document, context);
+                SubtitlesPanel.createAndPopulateNewWebview(document, context);
                 // showWebview(document, context);
             }
         })       
-    );
-
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('whisperedit.action.splitWebview', () => {
-
-        })
-    );
-
-    context.subscriptions.push(
-        // Command to trigger button click.  see package.json.  we are sending the args object from it.
-		vscode.commands.registerCommand('whisperedit.triggerButtonClick', (args) => {
-	
-			// Fire the event with the data
-			onMyCommandDataEmitter.fire({ command: args.command });
-			vscode.window.showInformationMessage(`triggerButtonClick executed with options ${args.command}`);
-			
-	})
     );
 
     context.subscriptions.push(
@@ -50,7 +32,7 @@ export function activate(context: vscode.ExtensionContext){
             if (activeEditor) {
                 const document = activeEditor.document;
                 // Now you can access the document
-                SubtitlesPanel.createAndShowWebview(document, context);
+                SubtitlesPanel.createAndPopulateNewWebview(document, context);
                 return document;
             } else {
                 vscode.window.showInformationMessage('No active text editor found.');
@@ -60,8 +42,37 @@ export function activate(context: vscode.ExtensionContext){
     );
 
     context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider('subtitlesWebviewView', new SubtitlesWebviewViewProvider())
+        vscode.commands.registerCommand('whisperedit.splitWebview', () => {
+
+        })
     );
+
+    context.subscriptions.push(
+        // Command to trigger button click.  see package.json.  we are sending the args object from it.
+		vscode.commands.registerCommand('whisperedit.triggerButtonClick', (args) => {
+			// Fire the event with the data
+			onMyCommandDataEmitter.fire({ command: args.command });
+			vscode.window.showInformationMessage(`triggerButtonClick executed with options ${args.command}`);
+			
+	})
+    );
+
+    // We need this disposable in the following two commands
+    const theWebviewViewProvider = new SubtitlesWebviewViewProvider(context.extensionUri);
+
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(SubtitlesWebviewViewProvider.viewType, theWebviewViewProvider)
+    );
+
+    // Register a command that can update the webview's content
+    context.subscriptions.push(
+        vscode.commands.registerCommand('whisperedit.updateWebviewData', () => {
+            const randomNumber = Math.floor(Math.random() * 100);
+            theWebviewViewProvider.updateData(`Updated data from command: ${randomNumber}`);
+            vscode.window.showInformationMessage('Webview data updated by command!');
+        })
+    );
+
 }
 
 export function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewPanelOptions & vscode.WebviewOptions{

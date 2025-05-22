@@ -30,6 +30,11 @@ export class SubtitlesPanel {
     // | webview |
     // ----------
 
+    // what happens if i open two separate json files?  i want the mapping between onDidOpenTextDocument (within 
+    // extension.ts) and createAndPopulateNewWebview to be stored as an association for each json file which becomes opened.  
+    // I need to manage these tuples myself programmatically because there will not be this association
+    // already managed when a json file is opened.
+
     // The following are used to keep track of what is the current panel in focus (active panel)
     private _activePanel: vscode.WebviewPanel | undefined;
 
@@ -47,7 +52,7 @@ export class SubtitlesPanel {
         }
     }
 
-    public static createAndShowWebview(document: vscode.TextDocument, context: vscode.ExtensionContext): void {
+    public static createAndPopulateNewWebview(document: vscode.TextDocument, context: vscode.ExtensionContext): void {
         
         const column = vscode.window.activeTextEditor ?
             vscode.window.activeTextEditor.viewColumn
@@ -68,6 +73,7 @@ export class SubtitlesPanel {
         // Base HTML skeleton with script waiting for postMessage
         panel.webview.html = mySubtitlesPanel._getHtmlForWebview(panel.webview);
         
+        // The webview object itself handles cleanup of its listeners when it is disposed.
         panel.webview.onDidReceiveMessage((message) => {
             if (message = 'webViewReady') {
                 // Populate the DOM of the first opened webview. This is a singleton.
@@ -76,6 +82,8 @@ export class SubtitlesPanel {
         });
         
     }
+
+    public createAndPopulateNewWebview(document: vscode.TextDocument, context: vscode.ExtensionContext){}
 
 	private constructor(document: vscode.TextDocument, panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
 		this._panel = panel;
@@ -215,14 +223,9 @@ export class SubtitlesPanel {
 
     private _update() {
         const webview = this._panel.webview;
-        // this._updateForPanel(webview);
 
         vscode.window.showInformationMessage('Instantiation of class was updated');
     }
-
-	private _updateForPanel(webview: vscode.Webview) {
-		this._panel.webview.html = this._getHtmlForWebview(webview);
-	}
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
             // Local path to script and css for the webview        
