@@ -33,17 +33,17 @@ export class SubtitlesPanel {
     // ----------
 
     // The following are used to keep track of what is the current panel in focus (active panel)
-    protected static activePanel: vscode.WebviewPanel | undefined;
+    private static activePanel: vscode.WebviewPanel | undefined;
 
-    protected static setActivePanel(panel: vscode.WebviewPanel | undefined) {
+    private static setActivePanel(panel: vscode.WebviewPanel | undefined) {
         this.activePanel = panel;
     }
 
-    protected static getActivePanel(): vscode.WebviewPanel | undefined {
+    private static getActivePanel(): vscode.WebviewPanel | undefined {
         return this.activePanel;
     }
 
-    protected static deleteActivePanel(panel: vscode.WebviewPanel): undefined {
+    private static deleteActivePanel(panel: vscode.WebviewPanel): undefined {
         if (this.activePanel === panel){
             this.activePanel = undefined;
         }
@@ -74,17 +74,17 @@ export class SubtitlesPanel {
         console.log('activePanel within createAndPopulateNewWebview is ', SubtitlesPanel.getActivePanel());
 
         // Base HTML skeleton with script waiting for postMessage
-        panel.webview.html = mySubtitlesPanel._getHtmlForWebview(panel.webview);
+        // panel.webview.html = mySubtitlesPanel._getHtmlForWebview(panel.webview);
         
         // The webview object itself handles cleanup of its listeners when it is disposed.
-        panel.webview.onDidReceiveMessage((message) => {
-            if (message = 'webViewReady') {
-                // Populate the DOM of the first opened webview. This is a singleton.
-                mySubtitlesPanel._initializeTheFirstWebview(document, panel);                
-            }
-        });
+        // panel.webview.onDidReceiveMessage((message) => {
+        //     if (message = 'webViewReady') {
+        //         // Populate the DOM of the first opened webview. This is a singleton.
+        //         mySubtitlesPanel._initializeTheFirstWebview(document, panel);                
+        //     }
+        // });
 
-        return panel;  
+        return mySubtitlesPanel._getReturnWebView();  
     }
 
     public static createAndTrackWebview(document: vscode.TextDocument, context: vscode.ExtensionContext){
@@ -120,8 +120,11 @@ export class SubtitlesPanel {
         });
 
 
-		// Webview's content is triggered by onDidReceiveMessage within createAndPopulateNewWebview. 
-		// Therefore we do not need to invoke anything to extract the same here.
+		// Webview's content is not triggered by onDidReceiveMessage within createAndPopulateNewWebview. 
+		// Therefore we need to invoke the following to extract the same here.
+        // Base HTML skeleton with script waiting for postMessage
+        this._panel.webview.html = this._getHtmlForWebview(panel.webview);
+        
 
 		// Listen for when the panel is disposed
 		// This happens when the user closes the panel or when the panel is closed programmatically
@@ -151,12 +154,15 @@ export class SubtitlesPanel {
             async message => {
                 switch (message.type) {
                     case 'updateText':
-                    // console.log('MESSAGE is ', message);
-                    // The webview has sent updated text content.  Update that content to our data structure here.
-                    const data = { id: message.id, textInner: message.textInner, textHTML: message.textHTML };
-                    // Now, call the function to process and broadcast the change.
-                    this._onChangeFromWebview(this._document, this._panel, data);
-                    return;                 
+                        // console.log('MESSAGE is ', message);
+                        // The webview has sent updated text content.  Update that content to our data structure here.
+                        const data = { id: message.id, textInner: message.textInner, textHTML: message.textHTML };
+                        // Now, call the function to process and broadcast the change.
+                        this._onChangeFromWebview(this._document, this._panel, data);
+                    return; 
+                    case 'webViewReady':
+                        // Populate the DOM of the first opened webview. This is a singleton.
+                        this._initializeTheFirstWebview(document, panel);                
                 }
             },
 			null,
@@ -164,6 +170,10 @@ export class SubtitlesPanel {
 			this._disposables
 		);
 	}
+
+    private _getReturnWebView() {
+        return this._panel;
+    };
 
     private _onChangeFromWebview (document: vscode.TextDocument, panel: vscode.WebviewPanel, data: any){
         panel.webview.postMessage({ perform: 'updateDataStructureInWebviews', data: data });

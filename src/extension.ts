@@ -35,14 +35,14 @@ export function activate(context: vscode.ExtensionContext){
                 openDocuments.set(uri, document);
 
                 if (!documentWebviews.has(uri)){
+                    // We cannot 
+                    // const instantiation = new SubtitlesPanel(webviewPanel, context)
+                    // here because the webviewPanel does not exist yet.  Therefore we need to use a class method 
+                    // and define createAndPopulateNewWebview as public static within SubtitlesPanel class. 
                     const panel = SubtitlesPanel.createAndPopulateNewWebview(document, context);
                     documentWebviews.set(uri, new Set([panel]));
-                }
-                // We cannot 
-                // const instantiation = new SubtitlesPanel(webviewPanel, context)
-                // here because the webviewPanel does not exist yet.  Therefore we need to use a class method 
-                // and define showWebview as public static within SubtitlesPanel class. 
-                SubtitlesPanel.createAndPopulateNewWebview(document, context);
+                } 
+ 
                 // showWebview(document, context);
             }
         })       
