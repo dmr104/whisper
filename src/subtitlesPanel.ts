@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import { getNonce } from './util';
 import { onMyCommandData } from './extension';
-// import { setActivePanel, getActivePanel, deleteActivePanel } from './extension';
 import { getWebviewOptions} from './extension';
+import { documentWebviews, openDocuments } from './extension';
 
+// Design pattern comes from 
+// https://github.com/microsoft/vscode-extension-samples/blob/main/webview-sample/src/extension.ts
 export class SubtitlesPanel {
 
     public static readonly viewType = 'whisperedit.subtitlesPanel';
@@ -30,29 +32,25 @@ export class SubtitlesPanel {
     // | webview |
     // ----------
 
-    // what happens if i open two separate json files?  i want the mapping between onDidOpenTextDocument (within 
-    // extension.ts) and createAndPopulateNewWebview to be stored as an association for each json file which becomes opened.  
-    // I need to manage these tuples myself programmatically because there will not be this association
-    // already managed when a json file is opened.
-
     // The following are used to keep track of what is the current panel in focus (active panel)
-    private _activePanel: vscode.WebviewPanel | undefined;
+    protected static activePanel: vscode.WebviewPanel | undefined;
 
-    private _setActivePanel(panel: vscode.WebviewPanel | undefined) {
-        this._activePanel = panel;
+    protected static setActivePanel(panel: vscode.WebviewPanel | undefined) {
+        this.activePanel = panel;
     }
 
-    private getActivePanel(): vscode.WebviewPanel | undefined {
-        return this._activePanel;
+    protected static getActivePanel(): vscode.WebviewPanel | undefined {
+        return this.activePanel;
     }
 
-    private deleteActivePanel(panel: vscode.WebviewPanel): undefined {
-        if (this._activePanel === panel){
-            this._activePanel = undefined;
+    protected static deleteActivePanel(panel: vscode.WebviewPanel): undefined {
+        if (this.activePanel === panel){
+            this.activePanel = undefined;
         }
     }
 
-    public static createAndPopulateNewWebview(document: vscode.TextDocument, context: vscode.ExtensionContext): void {
+    public static createAndPopulateNewWebview(document: vscode.TextDocument, 
+        context: vscode.ExtensionContext): vscode.WebviewPanel {
         
         const column = vscode.window.activeTextEditor ?
             vscode.window.activeTextEditor.viewColumn
@@ -70,6 +68,11 @@ export class SubtitlesPanel {
         // public function within said class.  Our class does all its work when we instantiate it.
         const mySubtitlesPanel = new SubtitlesPanel(document, panel, context);
 
+        // This will always be invoked no matter how we got here.  Keep a record of which webpanel is 
+        // the active one.
+        SubtitlesPanel.setActivePanel(panel);
+        console.log('activePanel within createAndPopulateNewWebview is ', SubtitlesPanel.getActivePanel());
+
         // Base HTML skeleton with script waiting for postMessage
         panel.webview.html = mySubtitlesPanel._getHtmlForWebview(panel.webview);
         
@@ -80,12 +83,33 @@ export class SubtitlesPanel {
                 mySubtitlesPanel._initializeTheFirstWebview(document, panel);                
             }
         });
-        
+
+        return panel;  
     }
 
-    public createAndPopulateNewWebview(document: vscode.TextDocument, context: vscode.ExtensionContext){}
+    public static createAndTrackWebview(document: vscode.TextDocument, context: vscode.ExtensionContext){
+        const uri = document.uri.toString();
 
-	private constructor(document: vscode.TextDocument, panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
+        const panel = this.createAndPopulateNewWebview(document, context);
+
+        if (!documentWebviews.has(uri)) {
+            documentWebviews.set(uri, new Set());
+        }
+        documentWebviews.get(uri)?.add(panel);
+
+        // The webview object itself handles cleanup of its listeners when it is disposed.
+        panel.onDidDispose(() => {
+            documentWebviews.get(uri)?.delete(panel);
+            if (documentWebviews.get(uri)?.size === 0){
+                documentWebviews.delete(uri);
+            }
+        });
+
+        return panel;
+    }
+
+	private constructor(document: vscode.TextDocument, panel: vscode.WebviewPanel, 
+        context: vscode.ExtensionContext) {
 		this._panel = panel;
 		this._extensionUri = context.extensionUri;
         this._document = document;
@@ -101,14 +125,16 @@ export class SubtitlesPanel {
 
 		// Listen for when the panel is disposed
 		// This happens when the user closes the panel or when the panel is closed programmatically
-		this._panel.onDidDispose(() => this._dispose(), null, this._disposables);
+		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
 		// Update the content based on view changes
         // Focus tracking.  this means we are tracking which panel currently has focus
 		this._panel.onDidChangeViewState(
 			(e) => {
                 if (e.webviewPanel.active){
-                this._setActivePanel(e.webviewPanel);
+                SubtitlesPanel.setActivePanel(e.webviewPanel);
+                 console.log('activePanel within onDidChagneViewState is ', SubtitlesPanel.getActivePanel());
+
                 } 
 
 				if (this._panel.visible) {
@@ -143,13 +169,17 @@ export class SubtitlesPanel {
         panel.webview.postMessage({ perform: 'updateDataStructureInWebviews', data: data });
     }
 
-	private _dispose() {
-
+	public dispose() {
 		// Clean up our resources
+        SubtitlesPanel.deleteActivePanel(this._panel);
+         console.log('activePanel within dispose, after deleteActivePanel, is ', SubtitlesPanel.getActivePanel());
+
         // Recall that vscode.WebviewPanel has a .dispose() method. 
         // This closes the panel if it were showing and disposes of the resources owned by the webview. 
-        // Webview panels are also disposed when the user closes the webview panel. Both cases fire the onDispose event
-		//this._panel.dispose();
+        // Webview panels are also disposed when the user closes the webview panel. Both cases fire the 
+        // onDispose event
+		this._panel.dispose();
+        console.log('I am being called from dispose!');
 
 		while (this._disposables.length) {
             // Removes the disposable from the event fired on onDidChangeViewState from this._disposables.
@@ -162,7 +192,7 @@ export class SubtitlesPanel {
 	}
 
     private _initializeTheFirstWebview (document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel) {
-        console.log("this.singletonInitWebview", this._singletonInitWebview);
+        //console.log("this.singletonInitWebview", this._singletonInitWebview);
         if (!this._singletonInitWebview){
             this._readFromFile(document)
                 .then(myJsonData => {

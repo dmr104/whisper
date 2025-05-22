@@ -5,6 +5,18 @@ import * as path from 'path';
 import { SubtitlesPanel } from './subtitlesPanel';
 import { SubtitlesWebviewViewProvider } from './SubtitlesWebviewProvider';
 
+// what happens if i open two separate json files?  i want the mapping between onDidOpenTextDocument (within 
+// extension.ts) and createAndPopulateNewWebview to be stored as an association for each json file which 
+// becomes opened.  I need to manage these tuples myself programmatically because there will not be this 
+// association already managed when a json file is opened.
+
+// But a TextDocument may have more than one webview.   If you want to associate multiple webviews with a 
+// single TextDocument, then using:
+export const documentWebviews = new Map<string, Set<vscode.WebviewPanel>>();
+// is the correct approach. And yes, you can also maintain a
+export const openDocuments = new Map<string, vscode.TextDocument>();
+//  if you need to store or reference the original documents independently (e.g., for metadata, state, etc.).
+
 // Define an EventEmitter to handle your custom event
 export const onMyCommandDataEmitter = new vscode.EventEmitter<any>();
 export const onMyCommandData = onMyCommandDataEmitter.event;
@@ -16,6 +28,13 @@ export function activate(context: vscode.ExtensionContext){
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument((document: vscode.TextDocument) => {
             if (document.languageId === 'json' && document.uri.scheme === 'file') {
+                const uri = document.uri.toString();
+                openDocuments.set(uri, document);
+
+                if (!documentWebviews.has(uri)){
+                    const panel = SubtitlesPanel.createAndPopulateNewWebview(document, context);
+                    documentWebviews.set(uri, new Set([panel]));
+                }
                 // We cannot 
                 // const instantiation = new SubtitlesPanel(webviewPanel, context)
                 // here because the webviewPanel does not exist yet.  Therefore we need to use a class method 
@@ -43,7 +62,15 @@ export function activate(context: vscode.ExtensionContext){
 
     context.subscriptions.push(
         vscode.commands.registerCommand('whisperedit.splitWebview', () => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor){
+                const document = editor.document;
+                const uri = document.uri.toString();
 
+                openDocuments.set(uri, document); // In case it wasn't caught before
+
+                SubtitlesPanel.createAndTrackWebview(document, context);
+            }
         })
     );
 
