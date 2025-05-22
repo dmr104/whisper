@@ -25,6 +25,9 @@ export function activate(context: vscode.ExtensionContext){
     vscode.window.showInformationMessage('BOOGLIES');
     console.log('JSON Webview extension is active');
 
+    // This is to establish a singleton behaviour of the first opening done to a webview
+    let theFirstWebviewIsAlreadyOpen: boolean = false;
+
     // === Track newly opened documents ===
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument((document: vscode.TextDocument) => {
@@ -39,7 +42,7 @@ export function activate(context: vscode.ExtensionContext){
                     // const instantiation = new SubtitlesPanel(webviewPanel, context)
                     // here because the webviewPanel does not exist yet.  Therefore we need to use a class method 
                     // and define createAndPopulateNewWebview as public static within SubtitlesPanel class. 
-                    const panel = SubtitlesPanel.createAndPopulateNewWebview(document, context);
+                    const panel = SubtitlesPanel.createAndPopulateNewWebviewFromFile(document, context);
                     documentWebviews.set(uri, new Set([panel]));
                 } 
  
@@ -71,13 +74,14 @@ export function activate(context: vscode.ExtensionContext){
     context.subscriptions.push(
         vscode.commands.registerCommand("whisperedit.openSubtitles", () =>{
             const activeEditor = vscode.window.activeTextEditor;
-            if (activeEditor) {
+            if (activeEditor && !theFirstWebviewIsAlreadyOpen) {
                 const document = activeEditor.document;
                 // Now you can access the document
-                SubtitlesPanel.createAndPopulateNewWebview(document, context);
+                SubtitlesPanel.createAndPopulateNewWebviewFromFile(document, context);
+                theFirstWebviewIsAlreadyOpen = true;
                 return document;
             } else {
-                vscode.window.showInformationMessage('No active text editor found.');
+                vscode.window.showInformationMessage('The first webview is already opened.');
                 return null;
             }
         })

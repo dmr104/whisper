@@ -14,21 +14,18 @@ export class SubtitlesPanel {
 	private readonly _extensionUri: vscode.Uri;
     private readonly _document: vscode.TextDocument;
 	private _disposables: vscode.Disposable[] = [];
-
-    private _singletonInitWebview: boolean = false;
+    
     private jsonData: any = null;
     // The first time a webview is populated we want to read from the file on disk.
-    // The following variable is used to control this singleton behaviour of readfile() within
-    // the function initializeWebView.  We want jsonData to be in a scope which is available to 
-    // all webviews. When a webview is split however we populate the new webview from the one which 
+    // When a webview is split we populate the new webview from the one which 
     // was split from.
     // any change to webview -> matching change should be sent to form a matching change in all other webviews.
     // ----------
     // | webview |--
     // ----------  /|\
-    //      |       |       ----------          ------
-    //     \|/       ------| jsonData |--------| disk |
-    // ----------           ----------          ------
+    //      |       |                           ------
+    //     \|/       --------------------------| disk |
+    // ----------                               ------
     // | webview |
     // ----------
 
@@ -49,7 +46,7 @@ export class SubtitlesPanel {
         }
     }
 
-    public static createAndPopulateNewWebview(document: vscode.TextDocument, 
+    public static createAndPopulateNewWebviewFromFile(document: vscode.TextDocument, 
         context: vscode.ExtensionContext): vscode.WebviewPanel {
         
         const column = vscode.window.activeTextEditor ?
@@ -73,43 +70,46 @@ export class SubtitlesPanel {
         SubtitlesPanel.setActivePanel(panel);
         console.log('activePanel within createAndPopulateNewWebview is ', SubtitlesPanel.getActivePanel());
 
-        // Base HTML skeleton with script waiting for postMessage
-        // panel.webview.html = mySubtitlesPanel._getHtmlForWebview(panel.webview);
-        
-        // The webview object itself handles cleanup of its listeners when it is disposed.
-        // panel.webview.onDidReceiveMessage((message) => {
-        //     if (message = 'webViewReady') {
-        //         // Populate the DOM of the first opened webview. This is a singleton.
-        //         mySubtitlesPanel._initializeTheFirstWebview(document, panel);                
-        //     }
-        // });
-
         return mySubtitlesPanel._getReturnWebView();  
     }
 
     public static createAndTrackWebview(document: vscode.TextDocument, context: vscode.ExtensionContext){
+
+        const column = vscode.window.activeTextEditor ?
+        vscode.window.activeTextEditor.viewColumn
+        : undefined;
+        
+        const panel = vscode.window.createWebviewPanel(
+            SubtitlesPanel.viewType,
+            'Webview',
+            column || vscode.ViewColumn.One,
+            getWebviewOptions(context.extensionUri)
+        );
+
+        const splitTheWebview: boolean = true;
+        const mySubtitlesPanel = new SubtitlesPanel(document, panel, context, splitTheWebview);
         const uri = document.uri.toString();
-
-        const panel = this.createAndPopulateNewWebview(document, context);
-
+        
         if (!documentWebviews.has(uri)) {
             documentWebviews.set(uri, new Set());
         }
         documentWebviews.get(uri)?.add(panel);
 
         // The webview object itself handles cleanup of its listeners when it is disposed.
-        panel.onDidDispose(() => {
+        const myWebviewPanel = mySubtitlesPanel._getReturnWebView();
+        
+        myWebviewPanel.onDidDispose(() => {
             documentWebviews.get(uri)?.delete(panel);
             if (documentWebviews.get(uri)?.size === 0){
                 documentWebviews.delete(uri);
             }
         });
 
-        return panel;
+        return myWebviewPanel;
     }
 
 	private constructor(document: vscode.TextDocument, panel: vscode.WebviewPanel, 
-        context: vscode.ExtensionContext) {
+        context: vscode.ExtensionContext, splitTheWebview?: boolean) {
 		this._panel = panel;
 		this._extensionUri = context.extensionUri;
         this._document = document;
@@ -161,8 +161,11 @@ export class SubtitlesPanel {
                         this._onChangeFromWebview(this._document, this._panel, data);
                     return; 
                     case 'webViewReady':
-                        // Populate the DOM of the first opened webview. This is a singleton.
-                        this._initializeTheFirstWebview(document, panel);                
+                        if (!splitTheWebview){
+                            this._populateFirstWebviewFromFile(this._document, this._panel);                
+                        } else { // The webviewSplit command has been invoked
+                           // this._populateAnotherWebviewFromDOM(this._document, this._panel);
+                        }
                 }
             },
 			null,
@@ -201,28 +204,48 @@ export class SubtitlesPanel {
 		}
 	}
 
-    private _initializeTheFirstWebview (document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel) {
-        //console.log("this.singletonInitWebview", this._singletonInitWebview);
-        if (!this._singletonInitWebview){
-            this._readFromFile(document)
-                .then(myJsonData => {
-                    // Use the JSON data as needed
-                    vscode.window.showInformationMessage("JSON data read successfully first time!");
-                    // console.log('myJsonData is ', myJsonData);
-    
-                    // Send a data from the extension to the webview
-                    for (let i=0; i < myJsonData.segments.length; i++){
-                        const seg = myJsonData.segments[i];
-                        webviewPanel.webview.postMessage({ segment: seg.text, id: seg.id});
-                    }
-                })
-                .catch(error => {
+    private _populateFirstWebviewFromFile (document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel): void {
+        this._readFromFile(document)
+            .then(myJsonData => {
+                        // Use the JSON data as needed
+                        vscode.window.showInformationMessage("JSON data read successfully first time!");
+                        // console.log('myJsonData is ', myJsonData);
+        
+                        // Send a data from the extension to the webview
+                        for (let i=0; i < myJsonData.segments.length; i++){
+                            const seg = myJsonData.segments[i];
+                            webviewPanel.webview.postMessage({ segment: seg.text, id: seg.id});
+                        }
+                    })
+            .catch(error => {
                     vscode.window.showErrorMessage("Failed to read JSON data.");
                     console.error("Error reading JSON data:", error);
                 });
-        } 
-        this._singletonInitWebview = true;
+
     }
+
+    // private _initializeTheFirstWebview (document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel) {
+    //     //console.log("this.singletonInitWebview", this._singletonInitWebview);
+    //     if (!this._singletonInitWebview){
+    //         this._readFromFile(document)
+    //             .then(myJsonData => {
+    //                 // Use the JSON data as needed
+    //                 vscode.window.showInformationMessage("JSON data read successfully first time!");
+    //                 // console.log('myJsonData is ', myJsonData);
+    
+    //                 // Send a data from the extension to the webview
+    //                 for (let i=0; i < myJsonData.segments.length; i++){
+    //                     const seg = myJsonData.segments[i];
+    //                     webviewPanel.webview.postMessage({ segment: seg.text, id: seg.id});
+    //                 }
+    //             })
+    //             .catch(error => {
+    //                 vscode.window.showErrorMessage("Failed to read JSON data.");
+    //                 console.error("Error reading JSON data:", error);
+    //             });
+    //     } 
+    //     this._singletonInitWebview = true;
+    // }
 
         // Setup initial content for the webview
     private async _readFromFile(document: vscode.TextDocument): Promise<any> {
