@@ -25,10 +25,13 @@ export function activate(context: vscode.ExtensionContext){
     vscode.window.showInformationMessage('BOOGLIES');
     console.log('JSON Webview extension is active');
 
+    // === Track newly opened documents ===
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument((document: vscode.TextDocument) => {
             if (document.languageId === 'json' && document.uri.scheme === 'file') {
                 const uri = document.uri.toString();
+
+                // Don't forget to clean this up within onDidCloseTextDocument
                 openDocuments.set(uri, document);
 
                 if (!documentWebviews.has(uri)){
@@ -43,6 +46,26 @@ export function activate(context: vscode.ExtensionContext){
                 // showWebview(document, context);
             }
         })       
+    );
+
+    // === Track closed documents as cleanup is needed ===
+    context.subscriptions.push(
+        vscode.workspace.onDidCloseTextDocument((document) => {
+            const uri = document.uri.toString();
+            // Remove webviews
+            if (documentWebviews.has(uri)){
+                const mySet = documentWebviews.get(uri) || undefined;
+                if (mySet){
+                    for (const p of mySet){ p.dispose(); }
+                } else { console.log('mySet is undefined'); }
+            } else {
+                console.log('documentWebViews is missing key ', uri);
+            }
+
+            // Cleanup this Set
+            openDocuments.delete(uri);
+           
+        })
     );
 
     context.subscriptions.push(
@@ -70,6 +93,8 @@ export function activate(context: vscode.ExtensionContext){
                 openDocuments.set(uri, document); // In case it wasn't caught before
 
                 SubtitlesPanel.createAndTrackWebview(document, context);
+            } else {
+                vscode.window.showInformationMessage('No active editor');
             }
         })
     );

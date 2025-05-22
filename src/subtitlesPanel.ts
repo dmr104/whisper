@@ -58,7 +58,7 @@ export class SubtitlesPanel {
         
         const panel = vscode.window.createWebviewPanel(
             SubtitlesPanel.viewType,
-            'Another webview',
+            'Webview',
             column || vscode.ViewColumn.One,
             getWebviewOptions(context.extensionUri)
         );
