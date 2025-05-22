@@ -120,8 +120,8 @@ export class SubtitlesPanel {
         });
 
 
-		// Set the webview's initial html content
-		// this._update();
+		// Webview's content is triggered by onDidReceiveMessage within createAndPopulateNewWebview. 
+		// Therefore we do not need to invoke anything to extract the same here.
 
 		// Listen for when the panel is disposed
 		// This happens when the user closes the panel or when the panel is closed programmatically
@@ -133,7 +133,7 @@ export class SubtitlesPanel {
 			(e) => {
                 if (e.webviewPanel.active){
                 SubtitlesPanel.setActivePanel(e.webviewPanel);
-                 console.log('activePanel within onDidChagneViewState is ', SubtitlesPanel.getActivePanel());
+                 console.log('activePanel within onDidChangeViewState is ', SubtitlesPanel.getActivePanel());
 
                 } 
 
