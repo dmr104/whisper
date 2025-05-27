@@ -16,8 +16,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "whisperedit.openSubtitles",
-        "title": "Whisperedit: Open subtitles webview"
+        "command": "whisperedit.createOrShowWebview",
+        "title": "Whisperedit: Open or switch to subtitles webview"
       },
       {
         "command": "whisperedit.splitWebview",
@@ -45,7 +45,7 @@
     },
     "keybindings": [
       {
-        "command": "whisperedit.openSubtitles",
+        "command": "whisperedit.createOrShowWebview",
         "key": "Alt-p"
       },
       {

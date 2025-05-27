@@ -47,14 +47,36 @@
 			console.log('bananas ', message.command);
 			processButtonClick(message.command);
 		}
+	});
+
+	window.addEventListener ('message', event => { 
+		const message = event.data;
 		if (message.segment){
 			addSegmentToSplurge(message.segment, message.id);
 		}
-		// if (message.perform){
-		// 	console.log('MESSAGE PERFORM is ', message.perform);
-
-		// }
 	});
+
+	window.addEventListener ('message', event => { 
+		message = event.data;
+		if (message.grabSplurge){
+			const currentSplurgeElement = document.getElementById('splurge');
+			if (currentSplurgeElement) {
+				console.log('Current splurge element:', currentSplurgeElement);
+				// Now you can inspect its current properties, like innerHTML, value, etc.
+					// For example: console.log(currentSplurgeElement.innerHTML);
+				} else {
+				console.log('Splurge element not found at the time of event.');
+			}
+		}
+	});
+
+	// function sendSplurgeToExtension(){
+	// 	const myGrabbedSplurge = document.getElementById('splurge');
+	// 	vscode.postMessage({ 
+	// 				type: 'grabbedSplurge',
+	// 				content: 'bollocks'
+	// 			});
+	// }
 
 	splurgeContainer.addEventListener('input', (e) => {
 		processInput(e);
@@ -449,20 +471,20 @@
 		// The following eventListener is to be fired when then page has totally loaded.  The message will be 
 		// used in the extension in order to trigger the initial population of the webview by the data structure.
 
-		const doSomething = () => {			
-			vscode.postMessage({
-				type: 'webViewReady',
-				text: 'Webview is loaded and ready to receive content.'
-			});
-		};
+		// const doSomething = () => {			
+		// 	vscode.postMessage({
+		// 		type: 'webViewReady',
+		// 		text: 'Webview is loaded and ready to receive content.'
+		// 	});
+		// };
 
-		if (document.readyState === "loading") {
-		// Loading hasn't finished yet
-		document.addEventListener("DOMContentLoaded", doSomething);
-		} else {
-		// `DOMContentLoaded` has already fired
-		doSomething();
-		}
+		// if (document.readyState === "loading") {
+		// // Loading hasn't finished yet
+		// document.addEventListener("DOMContentLoaded", doSomething);
+		// } else {
+		// // `DOMContentLoaded` has already fired
+		// doSomething();
+		// }
 
 		// window.addEventListener('load', () => {			
 		// 	vscode.postMessage({
