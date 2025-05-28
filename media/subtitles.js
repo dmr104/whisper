@@ -63,7 +63,7 @@
 			if (currentSplurgeElement) {
 				console.log('Current splurge element:', currentSplurgeElement);
 				// Now you can inspect its current properties, like innerHTML, value, etc.
-					// For example: console.log(currentSplurgeElement.innerHTML);
+				// For example: console.log(currentSplurgeElement.innerHTML);
 				} else {
 				console.log('Splurge element not found at the time of event.');
 			}
@@ -468,29 +468,14 @@
 			grabbedInnerDivByIdFromDOM.outerHTML = undoStack[undoStack.length - 1].blobHTML;
 		}
 
-		// The following eventListener is to be fired when then page has totally loaded.  The message will be 
+		// The following eventListener is to be fired when the DOMContent of the page has loaded.  The message will be 
 		// used in the extension in order to trigger the initial population of the webview by the data structure.
 
-		// const doSomething = () => {			
-		// 	vscode.postMessage({
-		// 		type: 'webViewReady',
-		// 		text: 'Webview is loaded and ready to receive content.'
-		// 	});
-		// };
-
-		// if (document.readyState === "loading") {
-		// // Loading hasn't finished yet
-		// document.addEventListener("DOMContentLoaded", doSomething);
-		// } else {
-		// // `DOMContentLoaded` has already fired
-		// doSomething();
-		// }
-
-		// window.addEventListener('load', () => {			
-		// 	vscode.postMessage({
-		// 		type: 'webViewReady',
-		// 		text: 'Webview is loaded and ready to receive content.'
-		// 	});
-		// });		
+		window.addEventListener('DOMContentLoaded', () => {			
+			vscode.postMessage({
+				type: 'webviewReady',
+				text: 'Webview is loaded and ready to receive content.'
+			});
+		});		
 
 }());
