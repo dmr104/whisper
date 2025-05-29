@@ -402,7 +402,7 @@ class WebviewManager implements vscode.Disposable {
     // We need the following counter to create a unique ID (viewType) for each webview.
     private static webviewCounter: number = 1;
 
-    public activeWebviewForDocument: Map<string | undefined, [string| undefined, vscode.WebviewPanel | undefined] | undefined> = new Map();
+    public activeWebviewForDocument: Map<string | undefined, [string| undefined, vscode.WebviewPanel | undefined] | undefined> = new Map().set(undefined, undefined);
     
     public createOrShowWebview(viewType: string, title: string, presentActiveDocumentUriString: string | undefined): ReturnValue {
         // Useful in development
@@ -414,7 +414,8 @@ class WebviewManager implements vscode.Disposable {
         // If the parameter presentActiveDocumentUriString has been passed the argument "as it says on the tin" then we will 
         // look up the corresponding WebviewPanel within primaryWebviewForDocument and return it within an object { Panel: WebviewPanel, 
         // newlyCreated: boolean }, by which this returning till this object shall also indicating to 
-        // registerCommand('createOrShowWebview) that we are doing a webview SHOW, not a CREATE
+        // registerCommand('createOrShowWebview) that we are doing a webview SHOW, not a CREATE, because a primary webview 
+        // already exists for this documentUriString
 
         const existingPanel = this.primaryWebviewForDocument.get(presentActiveDocumentUriString);
 
@@ -555,36 +556,36 @@ class WebviewManager implements vscode.Disposable {
             // in an activeWebviewForDocument.get(this.transientActiveDocumentUriString).  I hope this makes sense to the 
             // reader. 
             
-            // Note that the following part about storing the key as undefined with the presently created panel is
-            // especially important as it allows us to access the newly created panel before the user has clicked onto the
-            // TextEditor associated with this panel.  Clicking on the TextEditor will bring it into focus and the variable as
-            // transientActiveDocumentUriString will always be set by the onDidChangeActiveTextEditor as a callback 
-            // within the activate function.  But what if this hasn't happened yet?  What if we are presently within the 
-            // webview and have never clicked upon the corresponding TextEditor?  We need a way to grab the unique viewTypeId 
-            // of this active text editor in order to look it up its key within documentWebviews, and this will give us our 
-            // correspondingly associated TextDocumentUriString if we are within the webview, not the TextEditor.  I wish the 
-            // vscode API was more sophisticated, but it isn't, so this is what we will have to do.  Within the splitWebview 
-            // function transientActiveDocumentUriString is either defined or undefined.  This is good because within 
-            // activeWebviewForDocument we have a key corresponding to it being defined and a key corresponding to it being 
-            // undefined, both of which we have set manually as the active webview, within this function as createOrShowWebview. 
-            // Within the function as splitWebview we use the following logic.  If transientActiveDocumentUriString is defined
-            // (i.e. not undefined) we are NOT within a webview so we must return at this point.  Else 
-            // transientActiveDocumentUriString is undefined, so we are within a webview, so we must firstly find the currently 
-            // active webview which will hopefully always correspond to the key as undefined within activeWebviewForDocument; 
-            // then we must take this active webview and look up its corresponding document key within documentWebviews. This 
-            // key will allow us to decide which bunch of grapes this active webview belongs to.  We need this information in 
-            // order to split the Webview else how do we know which bunch of grapes to put the newly created webview panel into?  
-            // If we had open, for example bunch1 associated with doc1, and bunch2 associated with doc2, and we click onto doc1, 
-            // then a webview within bunch2, and split it; without this functionality of lookups the webview from bunch2 would 
-            // gain a split from bunch1.  This would not be what we desire.  I hope this makes sense.
-            this.activeWebviewForDocument.set(undefined, [uniqueViewTypeId, panel]);
         }  
 
-        // We were either 
+        // If we were either 
         // 1. Within a webview, hence activeTextEditor === undefined, or 
-        // 2. Not within a TextEditor, and so within a webviewPanel; 
-        //    Both scenarios/cases are the same, so therefore the code should never arrive here because we will have 
-        //    SHOWN prior and returned at that point in the code.
+        // 2. Not within a TextEditor, and so within a webviewPanel, hence activeTextEditor === undefined; 
+        // then both scenarios/cases are the same, so we proceed within this function.
+
+        // Note that the following part about storing the key as undefined with the presently created panel is
+        // especially important as it allows us to access the newly created panel before the user has clicked onto the
+        // TextEditor associated with this panel.  Clicking on the TextEditor will bring it into focus and the variable as
+        // transientActiveDocumentUriString will always be set by the onDidChangeActiveTextEditor as a callback 
+        // within the activate function.  But what if this hasn't happened yet?  What if we are presently within the 
+        // webview and have never clicked upon the corresponding TextEditor?  We need a way to grab the unique viewTypeId 
+        // of this active text editor in order to look it up its key within documentWebviews, and this will give us our 
+        // correspondingly associated TextDocumentUriString if we are within the webview, not the TextEditor.  I wish the 
+        // vscode API was more sophisticated, but it isn't, so this is what we will have to do.  Within the splitWebview 
+        // function transientActiveDocumentUriString is either defined or undefined.  This is good because within 
+        // activeWebviewForDocument we have a key corresponding to it being defined and a key corresponding to it being 
+        // undefined, both of which we have set manually as the active webview, within this function as createOrShowWebview. 
+        // Within the function as splitWebview we use the following logic.  If transientActiveDocumentUriString is defined
+        // (i.e. not undefined) we are NOT within a webview so we must return at this point.  Else 
+        // transientActiveDocumentUriString is undefined, so we are within a webview, so we must firstly find the currently 
+        // active webview which will hopefully always correspond to the key as undefined within activeWebviewForDocument; 
+        // then we must take this active webview and look up its corresponding document key within documentWebviews. This 
+        // key will allow us to decide which bunch of grapes this active webview belongs to.  We need this information in 
+        // order to split the Webview else how do we know which bunch of grapes to put the newly created webview panel into?  
+        // If we had open, for example bunch1 associated with doc1, and bunch2 associated with doc2, and we click onto doc1, 
+        // then a webview within bunch2, and split it; without this functionality of lookups the webview from bunch2 would 
+        // gain a split from bunch1.  This would not be what we desire.  I hope this makes sense.
+        this.activeWebviewForDocument.set(undefined, [uniqueViewTypeId, panel]);
         
         return { uniqueViewTypeId: uniqueViewTypeId, panel: panel, newlyCreated: true };
     }
@@ -593,7 +594,8 @@ class WebviewManager implements vscode.Disposable {
 
         // To indicate to the calling function that we wish the calling function to return we return the following to it
         // The present return will only be invoked if the focus is within an active TextEditor.  Recall that 
-        // transientActiveDocumentUriString is set within an eventListener within the activate function
+        // transientActiveDocumentUriString is set within an eventListener within the activate function, and will be undefined
+        // only if we are within a webview, and hence will be defined if we are not
         if (this.transientActiveDocumentUriString) { return { panelFrom: undefined, panelTo: undefined }; } 
         
         // If we reach here in the code we can infer that a webview is currently within focus. 
@@ -611,12 +613,23 @@ class WebviewManager implements vscode.Disposable {
         // let panelFrom: vscode.WebviewPanel | undefined = undefined;
         // Note that panelFrom is an automatic variable and thus will be disposed automatically when the function 
         // splitWebview terminates.
-        const anArray = this.activeWebviewForDocument.get(undefined);
-        let panelFrom;
-        if (anArray){
-            panelFrom = anArray[1];
+        // We hardcode the key as undefined here, though we could have transientActiveDocumentUriString as that must
+        // also have the meaning as undefined at this point in the code.  I believe this makes is easier for a human
+        // to read
+        let anArray;
+        if (this.activeWebviewForDocument.has(undefined)){
+            anArray = this.activeWebviewForDocument.get(undefined);
+            console.log('anArray from splitview is ', anArray);  
         }
 
+        if (!anArray){
+            vscode.window.showInformationMessage('Cannot split webview as you need to open a webview first');
+            return { panelFrom: undefined, panelTo: undefined };
+        }
+        
+        // If we reach here then we can conclude that anArray is not undefined
+        let panelFrom = anArray[1];
+        
         // Make sure that the viewType ID is unique by using the same counter as within createOrShowWebview
         const formattedNumber = WebviewManager.webviewCounter.toString().padStart(4, '0');
         console.log(formattedNumber);
@@ -656,7 +669,7 @@ class WebviewManager implements vscode.Disposable {
                         value[0] = undefined; // Set the string to undefined
     
                         // Set the entry to undefined      
-                        this.activeWebviewForDocument.set(foundKeyFromThePanel, undefined);
+                        this.activeWebviewForDocument.delete(foundKeyFromThePanel);
                     }                  
                 }
             }   
@@ -677,9 +690,9 @@ class WebviewManager implements vscode.Disposable {
         // the document whose information it records is lost, while transientActiveDocumentUriString will lose its state at this 
         // point.  Therefore transientActiveDocumentUriString gives us the flexibility to store only the following only when 
         // a transition of focus occurs from a webview to a TextEditor or from one TextEditor to another one. Recall that we are 
-        // within the function splitWebview.  We do not really want to record as webview with the key as undefined.   
-
-            this.activeWebviewForDocument.set(this.transientActiveDocumentUriString, [uniqueViewTypeId , panelNew]);
+        // within the function splitWebview.  We DO want to record the webview with the key as undefined if and when the variable 
+        // transientActiveDocumentUriString has the meaning as undefined
+        this.activeWebviewForDocument.set(this.transientActiveDocumentUriString, [uniqueViewTypeId , panelNew]);
         
         // We should also ONLY add this new webviewpanel to the Set of documentWebviews mapping for this transientActiveDocumentUriString 
         // if and when the key as transientActiveDocumentUriString is not undefined. The reason for this is because we do not wish to have 
