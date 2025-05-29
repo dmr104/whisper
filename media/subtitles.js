@@ -16,78 +16,89 @@
 	// The following stores the outerhtml of a text element.  used on mousedown.
 	let mygrabbedFromDom;
 
-	
 	// the following flag is used to control the logic of the change style button press
-	let changedView=false;	
+	let changedView=false;
 	
+	let splurgeContainer;
+	
+	// The following eventListener is to be fired when the DOMContent of the page has loaded.  The message will be 
+	// used in the extension in order to trigger the initial population of the webview by the data structure.
+	window.addEventListener('DOMContentLoaded', () => {			
+		vscode.postMessage({
+			type: 'webviewReady',
+			text: 'Webview is loaded and ready to receive content.'
+		});
 
-	// The following is used in the function addSegmentToSplurge
-	const splurgeContainer = document.getElementById('splurge');
 
-	document.getElementById("boldBtn").addEventListener("click", (e) => {
-		applyFormat("bold");
-	}
+		// The following is used in the function addSegmentToSplurge
+		splurgeContainer = document.getElementById('splurge');
+	
+		document.getElementById("boldBtn").addEventListener("click", (e) => {
+			applyFormat("bold");
+		}
+			
+		);
+		document.getElementById("italicBtn").addEventListener("click", () => applyFormat("italic"));
+		document.getElementById("underlineBtn").addEventListener("click", () => applyFormat("underline"));
+		// allow the user to toggle whether he/she sees the contenteditable divs
+		document.getElementById("changeBtn").addEventListener("click", () =>  applyChangeButton());
 		
-	);
-	document.getElementById("italicBtn").addEventListener("click", () => applyFormat("italic"));
-	document.getElementById("underlineBtn").addEventListener("click", () => applyFormat("underline"));
-	// allow the user to toggle whether he/she sees the contenteditable divs
-	document.getElementById("changeBtn").addEventListener("click", () =>  applyChangeButton());
+		// Undo button logic
+		document.getElementById("undoBtn").addEventListener("click", () => processOnUndoButton());	
 	
-	// Undo button logic
-	document.getElementById("undoBtn").addEventListener("click", () => processOnUndoButton());	
-
-	// Listener for messages from the extension. This function responds ultimately to the keybindings.  Note 
-	// that we simulate a click event within processButtonClick.  Goes  
-	// (keybinding with command.name) -> (args.command) -> (simulate button press in toolbar)
-	window.addEventListener('message', event => {
-		const message = event.data;
-		// console.log('Aaardvarks event.data is ', message);
-		if (message.command){
-			console.log('bananas ', message.command);
-			processButtonClick(message.command);
-		}
-	});
-
-	window.addEventListener ('message', event => { 
-		const message = event.data;
-		if (message.segment){
-			addSegmentToSplurge(message.segment, message.id);
-		}
-	});
-
-	window.addEventListener ('message', event => { 
-		message = event.data;
-		if (message.grabSplurge){
-			const currentSplurgeElement = document.getElementById('splurge');
-			if (currentSplurgeElement) {
-				console.log('Current splurge element:', currentSplurgeElement);
-				// Now you can inspect its current properties, like innerHTML, value, etc.
-				// For example: console.log(currentSplurgeElement.innerHTML);
-				} else {
-				console.log('Splurge element not found at the time of event.');
+		// Listener for messages from the extension. This function responds ultimately to the keybindings.  Note 
+		// that we simulate a click event within processButtonClick.  Goes  
+		// (keybinding with command.name) -> (args.command) -> (simulate button press in toolbar)
+		window.addEventListener('message', event => {
+			const message = event.data;
+			// console.log('Aaardvarks event.data is ', message);
+			if (message.command){
+				console.log('bananas ', message.command);
+				processButtonClick(message.command);
 			}
-		}
-	});
-
-	// function sendSplurgeToExtension(){
-	// 	const myGrabbedSplurge = document.getElementById('splurge');
-	// 	vscode.postMessage({ 
-	// 				type: 'grabbedSplurge',
-	// 				content: 'bollocks'
-	// 			});
-	// }
-
-	splurgeContainer.addEventListener('input', (e) => {
-		processInput(e);
-
-		// Make sure we send an update to the extension from the webView every time a key is input.
-	    updateToExt(e);
-	});
+		});
 	
-	splurgeContainer.addEventListener('mousedown', (e) => {
-		processMouseClick(e);
-	});
+		window.addEventListener ('message', event => { 
+			const message = event.data;
+			if (message.segment){
+				addSegmentToSplurge(message.segment, message.id);
+			}
+		});
+	
+		window.addEventListener ('message', event => { 
+			const message = event.data;
+			if (message.getDataFromDOM === 'grabWholeSplurgeFromWebview'){
+				const currentSplurgeElement = document.getElementById('splurge');
+				if (currentSplurgeElement) {
+					console.log('Current splurge element:', currentSplurgeElement);
+					// Now you can inspect its current properties, like innerHTML, value, etc.
+					// For example: console.log(currentSplurgeElement.innerHTML);
+					} else {
+					console.log('Splurge element not found at the time of event.');
+				}
+			}
+		});
+	
+		// function sendSplurgeToExtension(){
+		// 	const myGrabbedSplurge = document.getElementById('splurge');
+		// 	vscode.postMessage({ 
+		// 				type: 'grabbedSplurge',
+		// 				content: 'bollocks'
+		// 			});
+		// }
+	
+		splurgeContainer.addEventListener('input', (e) => {
+			processInput(e);
+	
+			// Make sure we send an update to the extension from the webView every time a key is input.
+			updateToExt(e);
+		});
+		
+		splurgeContainer.addEventListener('mousedown', (e) => {
+			processMouseClick(e);
+		});
+	});	
+	
 
 	function updateToExt(event){
 		target = event.target;
@@ -468,14 +479,6 @@
 			grabbedInnerDivByIdFromDOM.outerHTML = undoStack[undoStack.length - 1].blobHTML;
 		}
 
-		// The following eventListener is to be fired when the DOMContent of the page has loaded.  The message will be 
-		// used in the extension in order to trigger the initial population of the webview by the data structure.
-
-		window.addEventListener('DOMContentLoaded', () => {			
-			vscode.postMessage({
-				type: 'webviewReady',
-				text: 'Webview is loaded and ready to receive content.'
-			});
-		});		
+	
 
 }());
