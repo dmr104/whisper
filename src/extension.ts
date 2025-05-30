@@ -124,28 +124,53 @@ export function activate(context: vscode.ExtensionContext){
         const panelNew: vscode.WebviewPanel | undefined= returnedFromSplitPanel.panelTo;
         const panelFrom: vscode.WebviewPanel | undefined = returnedFromSplitPanel.panelFrom;
 
-        if  (!panelFrom || !panelNew){  // Unless we have both defined 
-            return;                     // Return prevents us utilizing splitWebview command within a TextEditor
+        if  (!panelFrom || !panelNew){  // This condition is "unless we have both defined" 
+            return;                     // This return prevents us utilizing splitWebview command within a TextEditor
         }
 
         // Set up message listener BEFORE setting HTML.  The disposable will be pushed onto context.subscriptions.push()
-        // and therefore will be automatically cleaned up
+        // and therefore will be automatically cleaned up.  Note that within the javascript run within the webview this 
+        // particular eventListener is a wrapper around the other eventListeners.  This is perfectly fine as we are only 
+        // calling the outer one the once.  We mirror this coding pattern by putting the all the inner onDidReceiveMessage 
+        // within the function populateWebviewFromDOM attached to the webpanel arguments which are passed in as parameters.
+
+        // We establish all the onDidReceiveMessage because we need to be able to handle the response from data sent 
+        // prior than sending it.  Note that the within the following internal we have panelFrom, not panelNew. 
+        // Its purpose is to initiate the receipt done to the html data from splurge from panelFrom. 
+
         panelNew.webview.onDidReceiveMessage( 
             message => {
                 switch (message.type){
                     case 'webviewReady':
-                    // Now it's safe to populate the DOM
-                    mySubtitlesPanel.populateWebviewFromDOM(panelFrom, panelNew); 
-                    break;                        
-                }
+                        panelFrom.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
+                        break;                        
+                };
             },
             undefined,
             context.subscriptions             
         );
-
+        
+        // Be aware that the DOM has already been setup by the time 'gotWholeSplurgeFromDOM' is received. 
+        // We must deal with panelFrom
+         
+        panelFrom.webview.onDidReceiveMessage(
+            message => {
+                switch (message.type) {
+                    case 'gotWholeSplurgeFromDOM':
+                        // Now we need to receive the whole splurge from the panelFrom
+                        console.log('message data is ', message.data);
+                        // Now it's safe to populate the DOM
+                        mySubtitlesPanel.populateWebviewFromDOM(message.data, panelNew); 
+                        break;
+                }
+            },
+            undefined,
+            context.subscriptions   
+        );
         
         panelNew.webview.html = mySubtitlesPanel.getHtmlForWebview(panelNew.webview);
         
+        // We now have received the data from the webview to the extension.
 
         // We can set a disposable onDidChangeViewState upon the webviewPanel panelNew
     });
@@ -289,9 +314,11 @@ export class SubtitlesPanel {
         }
     }
 
-    public populateWebviewFromDOM(panelFrom: vscode.WebviewPanel | undefined, panelTo: vscode.WebviewPanel){
-        console.log('panelFrom is ', panelFrom);
-        panelFrom?.webview.postMessage({getDataFromDOM: 'grabWholeSplurgeFromWebview' });
+    public populateWebviewFromDOM(data: string | undefined, panelTo: vscode.WebviewPanel){
+        console.log('data from populateWebviewFromDOM ', data);
+        if (data) {
+            panelTo.webview.postMessage({ postDataFromExtension: 'grabbedWholeSplurge', data: data });
+        }
     }
 
     public dispose(){
