@@ -157,8 +157,7 @@ export function activate(context: vscode.ExtensionContext){
             message => {
                 switch (message.type) {
                     case 'gotWholeSplurgeFromDOM':
-                        // Now we need to receive the whole splurge from the panelFrom
-                        console.log('message data is ', message.data);
+                        // We need to receive the whole splurge from the panelFrom
                         // Now it's safe to populate the DOM
                         mySubtitlesPanel.populateWebviewFromDOM(message.data, panelNew); 
                         break;
@@ -315,7 +314,7 @@ export class SubtitlesPanel {
     }
 
     public populateWebviewFromDOM(data: string | undefined, panelTo: vscode.WebviewPanel){
-        console.log('data from populateWebviewFromDOM ', data);
+
         if (data) {
             panelTo.webview.postMessage({ postDataFromExtension: 'grabbedWholeSplurge', data: data });
         }
@@ -382,7 +381,10 @@ class WebviewManager implements vscode.Disposable {
         webviewSet?.add(value); // Use optional chaining to add the value        
     }
 
-    // We need to write a helper function which will delete a value from a particular Set within documentWebviews
+    // We need to write a helper function which will delete a value from a particular Set within documentWebviews.
+    // Two arrays with the same content are considered different if they are not the same object in memory.
+    // The first entry of the array is unique so we can select by value. We compare its value with the value stored
+    // within the argument corresponding to the parameter as myMapping
     private deleteValueFromSetOfDocumentWebviews(key: string, value: [string, vscode.WebviewPanel], myMapping: myMap){
         // Check if the Map has the key
         if (myMapping.has(key)) {
@@ -390,8 +392,15 @@ class WebviewManager implements vscode.Disposable {
             
             // Use the delete method to remove the value
             if (webviewSet) {
-                webviewSet.delete(value);
-                
+            // Find the value to delete by checking the first element of each array
+            for (const item of webviewSet) {
+                if (item[0] === value[0]) {
+                    // Delete the matching item
+                    webviewSet.delete(item);
+                    break; // Exit loop after deleting
+                }
+            }
+            
                 // Remove the Set from the Map if it's empty
                 if (webviewSet.size === 0) {
                     myMapping.delete(key);
@@ -432,25 +441,24 @@ class WebviewManager implements vscode.Disposable {
     public activeWebviewForDocument: Map<string | undefined, [string| undefined, vscode.WebviewPanel | undefined] | undefined> = new Map().set(undefined, undefined);
     
     public createOrShowWebview(viewType: string, title: string, presentActiveDocumentUriString: string | undefined): ReturnValue {
-        // Useful in development
-        // this.documentWebviews.forEach((mySet, doc) => { for (const item in mySet) { console.log(doc, item);}} );
 
-        // Out modus operandi is as follows.
+
+        // Our modus operandi is as follows.
         // Check whether panel already exists. If it does we show it, not create it.  
         
         // If the parameter presentActiveDocumentUriString has been passed the argument "as it says on the tin" then we will 
-        // look up the corresponding WebviewPanel within primaryWebviewForDocument and return it within an object { Panel: WebviewPanel, 
-        // newlyCreated: boolean }, by which this returning till this object shall also indicating to 
-        // registerCommand('createOrShowWebview) that we are doing a webview SHOW, not a CREATE, because a primary webview 
-        // already exists for this documentUriString
+        // look up the corresponding WebviewPanel within primaryWebviewForDocument and return it within an object 
+        // { uniqueViewTypeId: 'dummy', panel: WebviewPanel, newlyCreated: boolean }, by which this returning till this object 
+        // shall also indicating to registerCommand('createOrShowWebview) that we are doing a webview SHOW, not a CREATE, 
+        // because a primary webview already exists for this documentUriString
 
         const existingPanel = this.primaryWebviewForDocument.get(presentActiveDocumentUriString);
 
         if (existingPanel && existingPanel[1]) { // WE ARE NOW HERE WITHIN WEBVIEW PANEL SHOW!!!!!!!!!!
             existingPanel[1].reveal();
             // The value of presentActiveDocumentUriString predicates upon the fact that when the webview was created
-            // the value of this variable presentActiveDocument was set to vscode.window.activeTextEditor?.document
-            return { uniqueViewTypeId: "dummy", panel: existingPanel[1], newlyCreated: false } ;  // Within Webview Panel SHOW
+            // the value of this variable as presentActiveDocument was set to vscode.window.activeTextEditor?.document
+            return { uniqueViewTypeId: 'dummy', panel: existingPanel[1], newlyCreated: false } ;  // Within Webview Panel SHOW
         }
         // WE ARE NOW NOT ANY LONGER WITHIN WEBVIEW PANEL SHOW!!!!!!
         // THEREFORE WE ARE NOW WITHIN WEBVIEW PANEL CREATE!!!!!
@@ -482,7 +490,7 @@ class WebviewManager implements vscode.Disposable {
         // The "view state" refers to:
         // Visibility - Whether the webview is currently visible to the user (User hides/shows the webview panel)
         // Active state - Whether the webview is the currently active editor (User switches between tabs)
-        // Active state - Whether the webview is the currently focused/active editor (Webview gets focused or loses focus)
+        // Active state - Whether the webview is the currently focused editor (Webview gets focused or loses focus)
 
         // We are particularly interested in onDidChangeViewState because this will allow us to use the key the variable as 
         // transientActiveDocumentUriString within activeWebviewForDocument mapping.  By doing this we will always have the key as
@@ -598,34 +606,42 @@ class WebviewManager implements vscode.Disposable {
         // webview and have never clicked upon the corresponding TextEditor?  We need a way to grab the unique viewTypeId 
         // of this active text editor in order to look it up its key within documentWebviews, and this will give us our 
         // correspondingly associated TextDocumentUriString if we are within the webview, not the TextEditor.  I wish the 
-        // vscode API was more sophisticated, but it isn't, so this is what we will have to do.  Within the splitWebview 
-        // function transientActiveDocumentUriString is either defined or undefined.  This is good because within 
-        // activeWebviewForDocument we have a key corresponding to it being defined and a key corresponding to it being 
-        // undefined, both of which we have set manually as the active webview, within this function as createOrShowWebview. 
-        // Within the function as splitWebview we use the following logic.  If transientActiveDocumentUriString is defined
-        // (i.e. not undefined) we are NOT within a webview so we must return at this point.  Else 
-        // transientActiveDocumentUriString is undefined, so we are within a webview, so we must firstly find the currently 
-        // active webview which will hopefully always correspond to the key as undefined within activeWebviewForDocument; 
-        // then we must take this active webview and look up its corresponding document key within documentWebviews. This 
-        // key will allow us to decide which bunch of grapes this active webview belongs to.  We need this information in 
-        // order to split the Webview else how do we know which bunch of grapes to put the newly created webview panel into?  
-        // If we had open, for example bunch1 associated with doc1, and bunch2 associated with doc2, and we click onto doc1, 
-        // then a webview within bunch2, and split it; without this functionality of lookups the webview from bunch2 would 
-        // gain a split from bunch1.  This would not be what we desire.  I hope this makes sense.
+        // vscode API was more sophisticated, but it isn't, so this is what we will have to do.  
+        
+        // Within the splitWebview function transientActiveDocumentUriString is either defined or undefined.  This is good 
+        // because within activeWebviewForDocument we can have a key corresponding to it being defined and a key corresponding 
+        // to it being undefined, both of which we set manually as the active webview, within this function as 
+        // createOrShowWebview. Within the function as splitWebview we use the following logic.  If 
+        // transientActiveDocumentUriString is defined (i.e. not undefined) we are NOT within a webview so we must return 
+        // at this point.  Else transientActiveDocumentUriString is undefined, so we are within a webview, so we must firstly 
+        // find the currently active webview which will hopefully always correspond to the key as undefined within 
+        // activeWebviewForDocument; then we must take this active webview and look up its corresponding document key within 
+        // documentWebviews. This key will allow us to decide which bunch of grapes this active webview belongs to.  We need 
+        // this information in order to split the Webview else how do we know which bunch of grapes to put the newly created 
+        // webview panel into?  If we had open, for example bunch1 associated with doc1, and bunch2 associated with doc2, and 
+        // we click onto doc1, then a webview within bunch2, and split it; without this functionality of lookups the webview 
+        // from bunch2 would gain a split from bunch1.  This would not be what we desire.  I hope this makes sense.
         this.activeWebviewForDocument.set(undefined, [uniqueViewTypeId, panel]);
         
         return { uniqueViewTypeId: uniqueViewTypeId, panel: panel, newlyCreated: true };
     }
 
     public splitWebview(viewType: string, title: string): { panelFrom: vscode.WebviewPanel | undefined; panelTo: vscode.WebviewPanel | undefined} {
-
-        // To indicate to the calling function that we wish the calling function to return we return the following to it
+        // Useful in development
+        
+        //this.documentWebviews.forEach((mySet, doc) => { for (const item in mySet) { console.log('booglies', doc, item);}} );
+        
+        console.log('Ivor ', this.documentWebviews);
+        // To indicate to the calling function that we wish the calling function to return, we return the following to it.
         // The present return will only be invoked if the focus is within an active TextEditor.  Recall that 
         // transientActiveDocumentUriString is set within an eventListener within the activate function, and will be undefined
-        // only if we are within a webview, and hence will be defined if we are not
-        if (this.transientActiveDocumentUriString) { return { panelFrom: undefined, panelTo: undefined }; } 
+        // only if we are within a webview, and hence will be defined if we are not (i.e. within a TextEditor)
+        if (this.transientActiveDocumentUriString) {
+            vscode.window.showInformationMessage('Cannot split webview unless you have one open and in focus'); 
+            return { panelFrom: undefined, panelTo: undefined }; } 
         
-        // If we reach here in the code we can infer that a webview is currently within focus. 
+        // If we reach here in the code we can infer that a webview is currently within focus hence 
+        // transientActiveDocumentUriString is undefined 
         console.log('this.transientActiveDocumentUriString from splitWebview is ', this.transientActiveDocumentUriString);
         // panelNew to be cleaned up within public dispose() and also upon panel.onDidDispose. 
 
@@ -649,8 +665,9 @@ class WebviewManager implements vscode.Disposable {
             console.log('anArray from splitview is ', anArray);  
         }
 
+        // As a precautionary measure
         if (!anArray){
-            vscode.window.showInformationMessage('Cannot split webview as you need to open a webview first');
+            vscode.window.showInformationMessage('Cannot split webview as you need to open a webview first (INVOKE 2)');
             return { panelFrom: undefined, panelTo: undefined };
         }
         

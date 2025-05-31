@@ -71,7 +71,6 @@
 				const currentSplurgeElement = document.getElementById('splurge');
 				if (currentSplurgeElement) {
 						vscode.postMessage({ type: 'gotWholeSplurgeFromDOM', data: currentSplurgeElement.innerHTML});
-						console.log('From point of sending is ', currentSplurgeElement.innerHTML);
 					} else {
 						console.log('Splurge element not found at the time of event.');
 				}
@@ -82,8 +81,7 @@
 			const message = event.data;
 			if (message.postDataFromExtension === 'grabbedWholeSplurge') {
 				let myGrabbedSplurge = document.getElementById('splurge');
-				console.log('myGrabbedSplurge is ', myGrabbedSplurge);
-				console.log('my grabbed Message Data is ', message.data);
+
 				// populate the splurge from the extension to the webview
 				myGrabbedSplurge.innerHTML = message.data;
 			}
