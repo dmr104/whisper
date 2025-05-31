@@ -190,25 +190,22 @@ export function activate(context: vscode.ExtensionContext){
 
     const commandDisposable003 = vscode.commands.registerCommand('whisperedit.triggerButtonClick', (args) => {
     // We want to invoke the commands as specified from package.json by the relevant webview only.  Each has a 
-    // unique webviewId. We have access to the currentDocument which is as a TextDocumentUriString stored in 
-    // webviewManager.currentActiveDocument, and the currently active webview for this TextDocument, which is 
-    // stored within the mapping webviewManager.activeWebviewForDocument. So let's get this activeWebviewForDocument
-    // and issue it with the data of each command each time its associated keypress happens.
+    // unique webviewId. We have access to the currently active webview which is stored within the array value 
+    // of webviewManager.activeWebviewForDocument: Map<string | undefined, [ uniqueViewTypeId, webviewPanel ]> 
+    // with the corresponding key as undefined. 
 
-        let anArray;
-        // Firstly, grab the current DocumentUriString
-        if (webviewManager.currentActiveDocument){
-            const theTextEditorClickedLast = webviewManager.currentActiveDocument; 
-            const theTextDocumentUriString = theTextEditorClickedLast.uri.toString();
-            // Now we need to acquire the most active webview associated with this TextDocument
-            anArray = webviewManager.activeWebviewForDocument.get(theTextDocumentUriString);
-        }
-        
+    // So let's get this active webview and issue it with the data of each command each time its associated 
+    // keypress happens.
+
         let theWebviewPanel: vscode.WebviewPanel | undefined;
-        if (anArray) {
-            theWebviewPanel = anArray[1]; 
+        // Firstly, grab the current DocumentUriString
+        if (webviewManager.activeWebviewForDocument.has(undefined)){
+            let myValueArray = webviewManager.activeWebviewForDocument.get(undefined);
+            if (myValueArray){
+                theWebviewPanel = myValueArray[1];
+            }
         }
-
+          
         // A bound press has been pressed.  Send the command to the webview.
         theWebviewPanel?.webview.postMessage({ command: args.command });
         
