@@ -87,6 +87,17 @@
 			}
 		});
 		
+		// The following is for receipt to the broadcast done to the webviews
+		window.addEventListener('message', event => {
+			const message = event.data;
+			if (message.receivedBroadcast === 'broadcastReceivedByWebviews'){
+				const splurgified = document.getElementById(message.segmentId);
+			
+				// populate the segment from the extension to the webview
+				splurgified.innerHTML = message.segmentHTML;
+			}
+		});
+
 		splurgeContainer.addEventListener('input', (e) => {
 			processInput(e);
 	
