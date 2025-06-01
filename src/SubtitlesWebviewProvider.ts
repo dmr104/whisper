@@ -5,6 +5,7 @@ export class SubtitlesWebviewViewProvider implements vscode.WebviewViewProvider{
     public static readonly viewType = 'subtitlesWebviewView'; // Must match the ID in package.json
     private _view?: vscode.WebviewView;
     private _currentData: string = "Initial data from provider";
+    private _disposables: vscode.Disposable[] = [];
 
     constructor(private readonly _extensionUri: vscode.Uri) {}
    
@@ -31,24 +32,24 @@ export class SubtitlesWebviewViewProvider implements vscode.WebviewViewProvider{
 
        // this._updateExplorer(this._getWebviewHtml());
 
-        // webviewView.webview.onDidReceiveMessage(
-        //     message => {
-        //         switch (message.command) {
-        //             case 'extractInfo':
-        //                 this.updateExplorer(message.data);
-        //                 return;
-        //         }
-        //     },
-        //     undefined,
-        //     context.subscriptions
-        // );
+        const messageDisposable001 = webviewView.webview.onDidReceiveMessage(
+            message => {
+                switch (message.type) {
+                    case 'updateExplorer':
+                        this.updateExplorer(message.data);
+                        return;
+                }
+            },
+        );
+
+        this._disposables.push(messageDisposable001);
     }
     
     /**
      * Updates the data displayed in the webview which is within the explorer.
      * This can be called from anywhere in your extension (e.g., by a command).
      */
-    public updateData(newData: string) {
+    public updateExplorer(newData: string) {
         this._currentData = newData;
         if (this._view) {
             // You can either re-render the whole HTML or send a message to the webview's script
@@ -56,7 +57,7 @@ export class SubtitlesWebviewViewProvider implements vscode.WebviewViewProvider{
             // this._updateWebviewHtml(); // Option 1: Full re-render
 
             // Option 2: Send a message to the webview script to update content
-            this._view.webview.postMessage({ command: 'updateContent', data: this._currentData });
+            this._view.webview.postMessage({ command: 'receiveData', data: this._currentData });
         }
     }
 
@@ -98,5 +99,16 @@ export class SubtitlesWebviewViewProvider implements vscode.WebviewViewProvider{
 </html>`;
 
     }
+
+     // Proper cleanup method
+    public dispose() {
+        // Dispose all event listeners and resources
+        while (this._disposables.length) {
+            const disposable = this._disposables.pop();
+            if (disposable) {
+                disposable.dispose();
+            }
+        }
+    }   
     
 }

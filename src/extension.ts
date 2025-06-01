@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getNonce } from './util';
+import { SubtitlesWebviewViewProvider } from './SubtitlesWebviewProvider';
 
 export function activate(context: vscode.ExtensionContext){
 
@@ -36,6 +37,9 @@ export function activate(context: vscode.ExtensionContext){
 
     // The html for the webview is part of the SubtitlesPanel class. So we need an instance of it. We are creating an html skeleton
     const mySubtitlesPanel = new SubtitlesPanel(context.extensionUri);
+
+    // Initiate the WebviewViewProvider
+    const mySubtitlesWebviewViewProvider = new SubtitlesWebviewViewProvider(context.extensionUri);
     
     const commandDisposable001 = vscode.commands.registerCommand("whisperedit.createOrShowWebview", () => {
                                   // I M P O R T A N T ! ! ! ! 
@@ -52,7 +56,7 @@ export function activate(context: vscode.ExtensionContext){
 
         if (presentActiveDocumentUriString){
             webviewManager.currentActiveDocumentUriString = presentActiveDocumentUriString;
-        }
+        } else { vscode.window.showInformationMessage( 'You need to open a JSON file which is the output of openAI whisper before you can view the text within a Webview');}
 
         // We need to extract the first item of the array (which is the value of the key within 
         // webviewManager.primaryWebviewForDocument).  This is in order to obtain the string which is the first 
@@ -111,6 +115,9 @@ export function activate(context: vscode.ExtensionContext){
                     break;
                     case 'updateText':
                         webviewManager.broadcastToOtherWebviews(message.id, message.segmentHTML, webviewPanel);
+                    break;
+                    case 'sendToWebviewView':
+                        mySubtitlesWebviewViewProvider.updateExplorer(message.segmentHTML);
                     break;                                               
                 }
             },
@@ -189,7 +196,10 @@ export function activate(context: vscode.ExtensionContext){
                         break;
                     case 'updateText':
                         webviewManager.broadcastToOtherWebviews(message.id, message.segmentHTML, panelNew);
-                    break;                                      
+                        break;
+                    case 'sendToWebviewView':
+                        mySubtitlesWebviewViewProvider.updateExplorer(message.segmentHTML);
+                        break;                                       
                 };
                 
             },
@@ -246,8 +256,17 @@ export function activate(context: vscode.ExtensionContext){
 
 	});
 
+    // Register the WebviewViewProvider
+    const webviewViewDisposable001 = vscode.window.registerWebviewViewProvider(SubtitlesWebviewViewProvider.viewType, mySubtitlesWebviewViewProvider);
+
+    // Register a command that can update the webview's content
+    const webviewViewCommandDisposable001 = vscode.commands.registerCommand('whisperedit.updateWebviewData', () => {
+        mySubtitlesWebviewViewProvider.updateExplorer('This is a test');
+    });
+
     context.subscriptions.push(webviewManager, mySubtitlesPanel, commandDisposable001, 
-        eventListenerDisposable001 ,commandDisposable002, commandDisposable003);
+        eventListenerDisposable001 ,commandDisposable002, commandDisposable003, 
+        webviewViewDisposable001);
     
 }
 
@@ -701,7 +720,26 @@ class WebviewManager implements vscode.Disposable {
     }
 
     public splitWebview(viewType: string, title: string): { panelFrom: vscode.WebviewPanel | undefined; panelTo: vscode.WebviewPanel | undefined} {
-        // Useful in development
+  
+        // We need the panel which was stored in the activeWebviewForDocument Mapping for this 
+        // TextDocumentUriString in order to use it later from which to populate the newly created webviewPanel.  
+
+        // We hardcode the key as undefined here, because we cannot assume that transientActiveDocumentUriString has 
+        // the meaning as undefined at this point in the code. 
+
+        let anArray;
+        if (this.activeWebviewForDocument.has(undefined)){
+            anArray = this.activeWebviewForDocument.get(undefined); 
+        }
+
+        // As a precautionary measure
+        if (!anArray){
+            vscode.window.showInformationMessage('Cannot split webview as you need to open a JSON output document from openai whisper and then a webview first');
+            return { panelFrom: undefined, panelTo: undefined };
+        }
+        
+        // If we reach here then we can conclude that anArray is not undefined
+        let panelFrom = anArray[1];        
  
         // Make sure that the viewType ID is unique by using the same counter as within createOrShowWebview
         const formattedNumber = WebviewManager.webviewCounter.toString().padStart(4, '0');
@@ -723,26 +761,6 @@ class WebviewManager implements vscode.Disposable {
         // increment the class counter for a unique viewType ID
         WebviewManager.webviewCounter++;        
         
-        // We need the panel (panelFrom) which was stored in the activeWebviewForDocument Mapping for this 
-        // TextDocumentUriString in order to use it later from which to populate the newly created webviewPanel.  
-        // let panelFrom: vscode.WebviewPanel | undefined = undefined;
-        // Note that panelFrom is an automatic variable and thus will be disposed automatically when the function 
-        // splitWebview terminates.
-        // We hardcode the key as undefined here, because we cannot assume that transientActiveDocumentUriString has 
-        // the meaning as undefined at this point in the code. 
-        let anArray;
-        if (this.activeWebviewForDocument.has(undefined)){
-            anArray = this.activeWebviewForDocument.get(undefined); 
-        }
-
-        // As a precautionary measure
-        if (!anArray){
-            vscode.window.showInformationMessage('Cannot split webview as you need to open a webview first (INVOKE 2)');
-            return { panelFrom: undefined, panelTo: undefined };
-        }
-        
-        // If we reach here then we can conclude that anArray is not undefined
-        let panelFrom = anArray[1];
 
         // We now need to draw our attention to the value of currentActiveDocumentUriString in order to recall the last document 
         // which was selected

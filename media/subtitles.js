@@ -108,6 +108,7 @@
 		splurgeContainer.addEventListener('mousedown', (e) => {
 			processMouseClick(e);
 		});
+
 	});	
 	
 
@@ -127,6 +128,10 @@
 			type: 'updateText',
 			id: myID,
 			segmentHTML: myHTML 
+		});
+		vscode.postMessage({
+			type: 'sendToWebviewView',
+			segmentHTML: myHTML
 		});
 	}
 
