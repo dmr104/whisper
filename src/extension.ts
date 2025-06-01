@@ -2,16 +2,34 @@ import * as vscode from 'vscode';
 import { getNonce } from './util';
 
 export function activate(context: vscode.ExtensionContext){
+
+    // The first time a webview is populated we want to read from the file on disk.
+    // When a webview is split we populate the new webview from the one which 
+    // was split from.
+
+    // ----------
+    // | webview |--
+    // ----------  /|\
+    //      |       |                           ------
+    //     \|/       --------------------------| disk |
+    // ----------                               ------
+    // | webview |
+    // ----------
+
+    // Subsequent to this, any change to webview should lead to and cause a matching dynamic granular change 
+    // sent to all other webviews.
+    
     // WebviewManager is an implementation of vscode.Disposable;  this makes things very convienient as 
-    // the disposable done to documentWebviews is managed within it.  the public dispose() method is called when 
+    // the disposable done to documentWebviews is managed within it.  The public dispose() method is called when 
     // webviewManager is disposed, and the .onDidDipose within createOrShowView deletes a key-value pair 
-    // when the webview becomes closed manually or programmatically individually. 
+    // when the webview becomes closed manually or programmatically individually.
+
     // The WebviewManager class contains the variable currentActiveDocument, the instance of which lingers and survives 
     // after the lifetime of the activate function has expired.  This is essential because references to functional 
     // informational state information are kept within the following instances of these classes many of which need 
     // to be referred to AFTER the active() function is completed
 
-    // This is one of the main dudes in our programming arsenal   
+    // The WebviewManager is one of the main dudes in our programming arsenal   
     const webviewManager = new WebviewManager();
 
     // The html for the webview is part of the SubtitlesPanel class. So we need an instance of it. We are creating an html skeleton
@@ -78,13 +96,16 @@ export function activate(context: vscode.ExtensionContext){
             message => {
                 switch (message.type){
                     case 'webviewReady':
-                    // Now it's safe to populate the DOM
-                    // presentActiveDocument was defined as a variable near to the beginning of our 
-                    // registerCommand('createOrShowWebview'). Its purpose was to store a TextDocument from activeTextEditor.document
-                    if (presentActiveDocument){
-                        mySubtitlesPanel.populateWebviewFromFile(presentActiveDocument, webviewPanel); 
-                    }
-                    break;                        
+                        // Now it's safe to populate the DOM
+                        // presentActiveDocument was defined as a variable near to the beginning of our 
+                        // registerCommand('createOrShowWebview'). Its purpose was to store a TextDocument from activeTextEditor.document
+                        if (presentActiveDocument){
+                            mySubtitlesPanel.populateWebviewFromFile(presentActiveDocument, webviewPanel); 
+                        }
+                    break;
+                    case 'updateText':
+                        webviewManager.broadcastToOtherWebviews(message.id, message.segmentHTML, webviewPanel);
+                    break;                                               
                 }
             },
             undefined,
@@ -157,8 +178,12 @@ export function activate(context: vscode.ExtensionContext){
                 switch (message.type){
                     case 'webviewReady':
                         panelFrom.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
-                        break;                        
+                        break;
+                    case 'updateText':
+                        webviewManager.broadcastToOtherWebviews(message.id, message.segmentHTML, panelNew);
+                    break;                                      
                 };
+                
             },
             undefined,
             context.subscriptions             
@@ -669,8 +694,6 @@ class WebviewManager implements vscode.Disposable {
 
     public splitWebview(viewType: string, title: string): { panelFrom: vscode.WebviewPanel | undefined; panelTo: vscode.WebviewPanel | undefined} {
         // Useful in development
-        console.log('this.transientActiveDocumentUriString from splitWebview is ', this.transientActiveDocumentUriString); 
-        // this.documentWebviews.forEach((mySet, doc) => { for (const item in mySet) { console.log('booglies', doc, item);}} );
  
         // Make sure that the viewType ID is unique by using the same counter as within createOrShowWebview
         const formattedNumber = WebviewManager.webviewCounter.toString().padStart(4, '0');
@@ -701,8 +724,7 @@ class WebviewManager implements vscode.Disposable {
         // the meaning as undefined at this point in the code. 
         let anArray;
         if (this.activeWebviewForDocument.has(undefined)){
-            anArray = this.activeWebviewForDocument.get(undefined);
-            console.log('anArray from splitview is ', anArray);  
+            anArray = this.activeWebviewForDocument.get(undefined); 
         }
 
         // As a precautionary measure
@@ -731,7 +753,6 @@ class WebviewManager implements vscode.Disposable {
             this.addValueToSetOfDocumentWebviews(this.transientActiveDocumentUriString, [uniqueViewTypeId, panelNew], this.documentWebviews);
         }        
 
-        console.log('Ivor ', this.documentWebviews.values);
         // To indicate to the calling function that we wish the calling function to return, we return the following to it.
         // The present return will only be invoked if the focus is within an active TextEditor.  Recall that 
         // transientActiveDocumentUriString is set within an eventListener within the activate function, and will be undefined
@@ -836,10 +857,32 @@ class WebviewManager implements vscode.Disposable {
         // We return in order to set up the webview content skeleton within activate. We must refer to an instance of the Subtitles
         // class within activate, and this is only available within the scope of the activate function.
 
-        console.log('panelFrom within splitWebview is ', panelFrom);
-        console.log('panelNew within splitWebview is ', panelNew);
         return { panelFrom: panelFrom, panelTo: panelNew};
 
+    }
+
+    public broadcastToOtherWebviews(id: string, segmentHTML: string, webviewPanel: vscode.WebviewPanel){
+
+        console.log('BROADCASTED!!', id, segmentHTML);
+
+        const foundKey = this.findKeyByWebviewPanelFromDocumentWebviews(webviewPanel, this.documentWebviews);
+        const foundViewTypeId = this.findIdByWebviewPanelFromDocumentWebviews(webviewPanel, this.documentWebviews);
+
+        let grapes;
+        if (this.documentWebviews.has(foundKey)){
+            grapes = this.documentWebviews.get(foundKey);
+        }
+
+        if (grapes){
+            for (const panel of grapes) {
+                if (panel[0] !== foundViewTypeId){
+                    // Here we are sending the broadcast to be received by all webviews except the sender
+                    panel[1].webview.postMessage({ receivedBroadcast: 'broadcastReceivedByWebviews', segmentId: id, segmentHTML: segmentHTML });
+                }
+            }
+        } else {
+            console.log('No panels found for the given key.');
+        }
     }
 
     // Disposes all tracking and cleans up resources 

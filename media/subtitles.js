@@ -106,19 +106,16 @@
 		console.log('TARGET from updateToExt is ', target);
 		myTextContentHTML = target.innerHTML;
 		console.log('target.innerHTML is ', myTextContentHTML);
-		myTextContentInner = target.innerText;
-		console.log('target.innerText is ', myTextContentInner);
 
 		// The following is to update the extension from the webview each time a key is pressed.
-		processUpdateToExt(myID, myTextContentInner, myTextContentHTML);
+		processUpdateToExt(myID, myTextContentHTML);
 	}
 
-	function processUpdateToExt(myID, myInnerText, myHTML) {
+	function processUpdateToExt(myID, myHTML) {
 		vscode.postMessage({ 
 			type: 'updateText',
 			id: myID,
-			textInner: myInnerText,
-			textHTML: myHTML 
+			segmentHTML: myHTML 
 		});
 	}
 
@@ -134,13 +131,12 @@
 
 		const divID = myStoredDiv.id;
 		let afterStoredDiv = document.getElementById(divID);
-		// We pass three fields of information from the webview to the extension.
+		// We pass two fields of information from the webview to the extension.
 		const myID = afterStoredDiv.id;
 		const divInnerHTML = afterStoredDiv.innerHTML;
-		const divInnerText = afterStoredDiv.innerText;
 		console.log('HOORAY!', afterStoredDiv);
-		console.log('Frogs in trees ', myID, divInnerText, divInnerHTML);
-		processUpdateToExt(divID, divInnerText, divInnerHTML);
+		console.log('Frogs in trees ', myID, divInnerHTML);
+		processUpdateToExt(divID, divInnerHTML);
 
 	}
 
