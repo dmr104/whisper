@@ -4,12 +4,12 @@
 // This allows the webview to post messages back to the extension
 const vscode = acquireVsCodeApi();
 
+const dataDisplay = document.getElementById('data-display');
 window.addEventListener('message', event => {
     
     const message = event.data; // The json data that the extension sent
     switch (message.command) {
         case 'receiveData':
-            const dataDisplay = document.getElementById('data-display');
             if (dataDisplay) {
                     dataDisplay.innerHTML = message.data;
                 }

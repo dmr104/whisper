@@ -26,10 +26,6 @@
       {
         "command": "whisperedit.triggerButtonClick",
         "title": "Whisperedit: trigger button click"
-      },
-      {
-        "command": "whisperedit.updateWebviewData",
-        "title": "Whisperedit: Update My Webview Data"       
       }
     ],
     "views": {

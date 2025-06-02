@@ -52,11 +52,8 @@ export class SubtitlesWebviewViewProvider implements vscode.WebviewViewProvider{
     public updateExplorer(newData: string) {
         this._currentData = newData;
         if (this._view) {
-            // You can either re-render the whole HTML or send a message to the webview's script
-            // to update specific parts. For simplicity, we'll re-render.
-            // this._updateWebviewHtml(); // Option 1: Full re-render
 
-            // Option 2: Send a message to the webview script to update content
+            // Send a message to the webview script to update content
             this._view.webview.postMessage({ command: 'receiveData', data: this._currentData });
         }
     }
