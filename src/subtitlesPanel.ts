@@ -67,9 +67,7 @@ export class SubtitlesPanel {
         this._readFromFile(document)
             .then(myJsonData => {
                         // Use the JSON data as needed
-                        vscode.window.showInformationMessage("JSON data read successfully first time!");
-                        // console.log('myJsonData is ', myJsonData);
-        
+                                
                         // Send a data from the extension to the webview
                         for (let i=0; i < myJsonData.segments.length; i++){
                             const seg = myJsonData.segments[i];

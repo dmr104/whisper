@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { SubtitlesPanel } from './subtitlesPanel';
-import { SubtitlesWebviewViewProvider } from './SubtitlesWebviewViewProvider';
+import { SubtitlesWebviewViewProvider } from './subtitlesWebviewViewProvider';
 import { WebviewManager, ReturnValue } from './webviewManager';
+import { ActivityWebviewViewProvider } from './activitybarWebviewViewProvider';
 
 export function activate(context: vscode.ExtensionContext){
 
@@ -41,6 +42,9 @@ export function activate(context: vscode.ExtensionContext){
 
     // Initiate the WebviewViewProvider
     const mySubtitlesWebviewViewProvider = new SubtitlesWebviewViewProvider(context.extensionUri);
+
+    //Initiate another for the activity bar button webview view
+    const myActivitybarWebviewviewProvider = new ActivityWebviewViewProvider(context.extensionUri);
     
     const commandDisposable001 = vscode.commands.registerCommand("whisperedit.createOrShowWebview", () => {
                                   // I M P O R T A N T ! ! ! ! 
@@ -260,13 +264,19 @@ export function activate(context: vscode.ExtensionContext){
     // Register the WebviewViewProvider
     const webviewViewDisposable001 = vscode.window.registerWebviewViewProvider(SubtitlesWebviewViewProvider.viewType, mySubtitlesWebviewViewProvider);
 
+    // And another one
+    const webviewViewDisposable002 = vscode.window.registerWebviewViewProvider(ActivityWebviewViewProvider.viewType, myActivitybarWebviewviewProvider);
+ 
+    const commandDisposable004 = vscode.commands.registerCommand('whisperedit.exportAllFormats', () => {
+        console.log('HAVE FIRED THE EXPORT COMMAND');
+    });
+
     context.subscriptions.push(webviewManager, mySubtitlesPanel, commandDisposable001, 
         eventListenerDisposable001 ,commandDisposable002, commandDisposable003, 
-        webviewViewDisposable001);
+       webviewViewDisposable001, webviewViewDisposable002, commandDisposable004);
     
 }
 
 export function deactivate() {
 }
-
 

@@ -4,7 +4,7 @@ import { getNonce } from './util';
 export class SubtitlesWebviewViewProvider implements vscode.WebviewViewProvider{
     public static readonly viewType = 'subtitlesWebviewView'; // Must match the ID in package.json
     private _view?: vscode.WebviewView;
-    private _currentData: string = "Initial data from provider";
+    private _currentData: string = "Keep this open for nice functionality";
     private _disposables: vscode.Disposable[] = [];
 
     constructor(private readonly _extensionUri: vscode.Uri) {}
@@ -16,7 +16,7 @@ export class SubtitlesWebviewViewProvider implements vscode.WebviewViewProvider{
         webviewView.webview.options = {
             // Allow scripts in the webview
             enableScripts: true,
-            // Restrict the webview to only loading content from our extension's `media` directory.
+            // Restrict the webview to only loading content from our extension's 'media' directory.
             localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'media')]          
         };
 

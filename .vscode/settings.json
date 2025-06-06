@@ -1,5 +1,12 @@
 // Place your settings in this file to overwrite default and user settings.
 {
+    "json.validate.enable": false,
+	"json.schemas":[
+		{
+			"fileMatch": ["package.json"],
+			"url": "./schemas/package.schema.json"
+		}
+	],
 	"files.exclude": {
 		"out": false // set this to true to hide the "out" folder with the compiled JS files
 	},

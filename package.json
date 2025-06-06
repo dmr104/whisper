@@ -10,7 +10,6 @@
     "Other"
   ],
   "activationEvents":  [
-    "onWebviewPanel:whisperedit.subtitlesPanel"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -26,9 +25,31 @@
       {
         "command": "whisperedit.triggerButtonClick",
         "title": "Whisperedit: trigger button click"
+      },
+      {
+        "command": "whisperedit.exportAllFormats",
+        "title": "whisperedit: write out JSON to multiple formats"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "whisperActivityBarView",
+          "title": "Export",
+          "icon": "$(pencil)"
+        }
+      ]
+    },
     "views": {
+      "whisperActivityBarView": [
+        {
+          "id": "panelWebviewView",
+          "name": "to all formats",
+          "icon": "./media/icon.svg",
+          "type": "webview",
+          "when": "activeWebviewPanelId =~ /^whisperWebviewPanel.*/"
+        }
+      ],
       "explorer": [
         {
           "id": "subtitlesWebviewView",
