@@ -28,7 +28,7 @@
       },
       {
         "command": "whisperedit.exportAllFormats",
-        "title": "whisperedit: write out JSON to multiple formats"
+        "title": "whisperedit: export out JSON to multiple formats"
       }
     ],
     "viewsContainers": {

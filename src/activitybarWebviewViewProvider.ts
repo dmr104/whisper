@@ -27,9 +27,17 @@ export class ActivityWebviewViewProvider implements vscode.WebviewViewProvider {
         });
 
         const messageDisposable001 = webviewView.webview.onDidReceiveMessage(
-            message => {
+            async message => {
                 switch (message.type) {
                     case 'buttonPressed':
+                        // Invoke the command which exports all file formats
+                        try {
+                            await vscode.commands.executeCommand('whisperedit.exportAllFormats');
+                            console.log('Files saved successfully');
+                        } catch (error) {
+                            console.error('Error executing command:', error);
+                        }               
+                        // Update the view with the message as "Exported!"
                         this.updateExplorer(message.data);
                         return;
                 }

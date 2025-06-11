@@ -3,6 +3,8 @@ import { SubtitlesPanel } from './subtitlesPanel';
 import { SubtitlesWebviewViewProvider } from './subtitlesWebviewViewProvider';
 import { WebviewManager, ReturnValue } from './webviewManager';
 import { ActivityWebviewViewProvider } from './activitybarWebviewViewProvider';
+import { resolve } from 'path';
+import { resourceLimits } from 'worker_threads';
 
 export function activate(context: vscode.ExtensionContext){
 
@@ -38,14 +40,14 @@ export function activate(context: vscode.ExtensionContext){
     const webviewManager = new WebviewManager();
 
     // The html for the webview is part of the SubtitlesPanel class. So we need an instance of it. We are creating an html skeleton
-    const mySubtitlesPanel = new SubtitlesPanel(context.extensionUri);
+    const mySubtitlesPanel = new SubtitlesPanel(context);
 
     // Initiate the WebviewViewProvider
     const mySubtitlesWebviewViewProvider = new SubtitlesWebviewViewProvider(context.extensionUri);
 
     //Initiate another for the activity bar button webview view
     const myActivitybarWebviewviewProvider = new ActivityWebviewViewProvider(context.extensionUri);
-    
+      
     const commandDisposable001 = vscode.commands.registerCommand("whisperedit.createOrShowWebview", () => {
                                   // I M P O R T A N T ! ! ! ! 
         // We want that each each webview creation will only happen once.  Thereafter we will 
@@ -108,22 +110,39 @@ export function activate(context: vscode.ExtensionContext){
         // Set up message listener BEFORE setting HTML.  The disposable will be pushed onto context.subscriptions.push()
         // and therefore will be automatically cleaned up
         webviewPanel.webview.onDidReceiveMessage(
-            message => {
+            async message => {
                 switch (message.type){
                     case 'webviewReady':
                         // Now it's safe to populate the DOM
                         // presentActiveDocument was defined as a variable near to the beginning of our 
                         // registerCommand('createOrShowWebview'). Its purpose was to store a TextDocument from activeTextEditor.document
-                        if (presentActiveDocument){
-                            mySubtitlesPanel.populateWebviewFromFile(presentActiveDocument, webviewPanel); 
+                        
+                        if (presentActiveDocument){ // The following logic sets the result as the value of a mapping between the 
+                            // webviewManager.currentActiveDocumentUriString and it
+                            let mainJSonDataRecord = await mySubtitlesPanel.populateWebviewFromFile(presentActiveDocument, webviewPanel);
+                            // We must also set 
+                            webviewManager.primaryWebviewForDocument.set(webviewManager.currentActiveDocumentUriString, [uniqueViewTypeId, webviewPanel, mainJSonDataRecord]);
+                            // This is necessary in order to select the primaryWebviewForDocument being active so that the commands 
+                            // bound to the keybindings can be sent to it. Note that we set the 3rd item within the array to the value as 
+                            // mainJsonDataRecord.  
+
+                            // primaryWebviewForDocument keeps a paired relationship record of which is the primary webview panel for 
+                            // each TextDocument.  We need this importantly in order to select the primary webview panel from the 
+                            // TextDocument.  IMPORTANT USER EXPERIENCE!!!! Ought this occur whenever the user is not within the 
+                            // primary webview panel --- i.e. might be within a secondary webview panel, or the TextEditor panel?
+                            // Answer is no. Rather than jumping Webview panels the UX would be much smoother if nothing happens upon 
+                            // a createOrShowWebpanel command after we already have a primary Webview panel.  There should not be any 
+                            // jumping around willy-nilly:  the user experience should be a stable one, not cryptic.  To change the
+                            //  webview panel the user shall use the mouse or a builtin command perhaps attached to a keybinding. 
+                            
                         }
-                    break;
+                        break;
                     case 'updateText':
                         webviewManager.broadcastToOtherWebviews(message.id, message.segmentHTML, webviewPanel);
-                    break;
+                        break;
                     case 'sendToWebviewView':
                         mySubtitlesWebviewViewProvider.updateExplorer(message.segmentHTML);
-                    break;                                               
+                        break;                                              
                 }
             },
             undefined,
@@ -138,11 +157,13 @@ export function activate(context: vscode.ExtensionContext){
         }
 
         // Now we must set
-        webviewManager.activeWebviewForDocument.set(presentActiveDocumentUriString, [uniqueViewTypeId, webviewPanel ]);
+        webviewManager.activeWebviewForDocument.set(presentActiveDocumentUriString, [uniqueViewTypeId, webviewPanel]);
         // This setting to the mapping is crucial because later in splitWebview function we will extract this value by
         // using the key which comes from an eventListener which fires upon when the TextEditor focus moves to a webview, or 
         // a webview moves to a TextEditor, or one TextEditor to another TextEditor, but never from one webview to another
         // no matter what the webviews are.  This key is called webviewManager.transientActiveDocumentUriString
+
+
     });
 
     const eventListenerDisposable001 = vscode.window.onDidChangeActiveTextEditor(editor => {
@@ -174,7 +195,7 @@ export function activate(context: vscode.ExtensionContext){
         let viewType: string = "whisperWebviewPanel";
 
         let returnedFromSplitPanel: { panelFrom: vscode.WebviewPanel | undefined; panelTo: vscode.WebviewPanel | undefined } = 
-        webviewManager.splitWebview(viewType, 'Webview');
+                webviewManager.splitWebview(viewType, 'Webview');
         
         const panelNew: vscode.WebviewPanel | undefined= returnedFromSplitPanel.panelTo;
         const panelFrom: vscode.WebviewPanel | undefined = returnedFromSplitPanel.panelFrom;
@@ -233,7 +254,6 @@ export function activate(context: vscode.ExtensionContext){
         
         // We now have received the data from the webview to the extension.
 
-        // We can set a disposable onDidChangeViewState upon the webviewPanel panelNew
     });
 
     const commandDisposable003 = vscode.commands.registerCommand('whisperedit.triggerButtonClick', (args) => {
@@ -261,14 +281,158 @@ export function activate(context: vscode.ExtensionContext){
 
 	});
 
-    // Register the WebviewViewProvider
+    // Register the WebviewViewProvider.  This is for the subtitles menu option in the panel
     const webviewViewDisposable001 = vscode.window.registerWebviewViewProvider(SubtitlesWebviewViewProvider.viewType, mySubtitlesWebviewViewProvider);
 
     // And another one
-    const webviewViewDisposable002 = vscode.window.registerWebviewViewProvider(ActivityWebviewViewProvider.viewType, myActivitybarWebviewviewProvider);
- 
-    const commandDisposable004 = vscode.commands.registerCommand('whisperedit.exportAllFormats', () => {
-        console.log('HAVE FIRED THE EXPORT COMMAND');
+    const webviewViewDisposable002 = vscode.window.registerWebviewViewProvider(ActivityWebviewViewProvider.viewType, myActivitybarWebviewviewProvider);   
+   
+    const commandDisposable004 = vscode.commands.registerCommand('whisperedit.exportAllFormats', async () => {
+        // Obtain the ACTIVE webviewPanel
+        let myCurrentActiveWebviewForDocumentValue;
+        let myCurrentActiveWebviewForDocumentUri;
+
+        if (webviewManager.activeWebviewForDocument.has(webviewManager.transientActiveDocumentUriString)){
+            myCurrentActiveWebviewForDocumentValue = webviewManager.activeWebviewForDocument.get(webviewManager.transientActiveDocumentUriString);
+        }
+
+        if (webviewManager.activeWebviewForDocument.has(webviewManager.transientActiveDocumentUriString) &&
+        myCurrentActiveWebviewForDocumentValue ){ // we are not within a webviewPanel
+            myCurrentActiveWebviewForDocumentUri = myCurrentActiveWebviewForDocumentValue[0];
+        } // the variable as myCurrentActiveWebviewForDocumentValue is undefined before any webpanel is opened.  Thereafter it 
+        // keeps a record of the first webviewpanel opened, even if we go back to focus the Texteditor panel
+
+        // Now we will find the key corresponding with the myCurrentActiveWebviewForDocumentUri within the mapping as 
+        // webviewManager.documentWebviews with the id for the item within the set as myCurrentActiveWebviewForDocumentUri
+        let myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri: string | undefined;
+        if (myCurrentActiveWebviewForDocumentUri){
+            myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri = webviewManager.findKeyByIdFromDocumentWebviews(
+                myCurrentActiveWebviewForDocumentUri, webviewManager.documentWebviews);
+        }
+
+        // We need to obtain the value as mainJsonDataRecord from the mapping as primaryWebviewForDocument with the key as 
+        // webviewManager.currentActiveDocumentUriString.
+
+        // We need also to obtain the associatedPrimaryWebViewPanel, and that as the uniqueViewTypeId.
+        let uniqueViewTypeId: string | undefined;
+        let associatedPrimaryWebViewPanel;
+        let mainJsonDataRecord = undefined;
+        console.log('HERE is ', myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri);
+        let myValue = webviewManager.primaryWebviewForDocument.get(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri);
+        if (myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri && myValue){
+            uniqueViewTypeId = myValue[0];
+            associatedPrimaryWebViewPanel = myValue[1];
+            mainJsonDataRecord = myValue[2];
+        }
+
+        // Now we need to update the content of mainJsonDataRecord accordingly from the associatedWebviewPanel. 
+        // Note that we shall also modify the universal text property of the JSON object
+
+        // Request splurge from the active webview
+        if (associatedPrimaryWebViewPanel){
+            associatedPrimaryWebViewPanel.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
+        }
+
+        let universalTextField = "";
+        let dynamicSplurge = "";
+        let currentValue: any = null;
+      
+        // Create service instance
+        const myService = new MyService();
+
+        // Clean up when done
+        // disposable.dispose();
+        // myService.dispose();
+
+        if (associatedPrimaryWebViewPanel && mainJsonDataRecord){
+            // We need to set an eventListener as onDidReceiveMessage upon the webview.
+            associatedPrimaryWebViewPanel.webview.onDidReceiveMessage( message => {
+                switch (message.type) {
+                    case 'gotWholeSplurgeFromDOM':
+                        // Trigger the event
+                        myService.doSomething(message.data);
+                        
+                }
+            });      
+
+            // Listen to the event
+            const disposableInner001 = myService.onDidChange((message: string) => {
+                // console.log(`Event received: ${message}`);
+                vscode.window.showInformationMessage(`Got event from onDidReceiveMessage`);
+                dynamicSplurge = message;
+                console.log('dynamicSplurge IS ', message);
+
+                let segments;
+                // Simple string manipulation.  segments is an array of dynamically altered copied DOM from webview
+                segments = dynamicSplurge.match(/<div contenteditable="true" class="segment" id="(\d+)">(.*?)<\/div>/g);
+    
+                if (segments) {
+                    segments.forEach(segment => {
+                        const regex = /<div contenteditable="true" class="segment" id="(\d+)">(.*?)<\/div>/;        
+                        const result = segment.match(regex);
+                        if (result){ // we have a segment of dynamically altered copied DOM from webview
+                            const [ idMatch, contentMatch ] = result.slice(1);  // The id and content of this segment of DOM from webview
+                            if (idMatch && contentMatch) { // Now we populate the mainJsonDataRecord with the dynamically updated stuff
+                                universalTextField = universalTextField.concat("", contentMatch);
+                                mainJsonDataRecord.segments[idMatch].text = contentMatch;
+                            }
+                        }
+                    });
+                }
+                mainJsonDataRecord.text = universalTextField;
+                console.log('modifiedJsonDataRecord is ', mainJsonDataRecord);
+
+                // Now we need to write the amended modifiedJsonDataRecord to within the mapping as primaryWebviewForDocument
+                if (webviewManager.currentActiveDocumentUriString){
+                    webviewManager.primaryWebviewForDocument.set(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri, [uniqueViewTypeId, associatedPrimaryWebViewPanel, mainJsonDataRecord]);    
+                    console.log('There is ', webviewManager.primaryWebviewForDocument.get(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri));  
+                }
+
+                // Now, first we write the data structure as modifiedJsonDataRecord to the disk.  In order to do this and to write to other 
+                // exported data outputs we will need the Uri as the path and the filename minus the extension part.  
+              
+                let extractedJsonUri;
+                if (myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri){
+                    extractedJsonUri = vscode.Uri.parse(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri);
+                }
+                
+                const extractedJsonPath = extractedJsonUri?.fsPath;
+                console.log('extractedJsonUri is ', extractedJsonUri);
+                console.log('extractedPath is ', extractedJsonPath);
+
+                const basePath = extractedJsonPath?.replace(/\.[^/.]+$/, "");
+                console.log('basePath is ', basePath);
+
+                const srtUri = vscode.Uri.file(`${basePath}.srt`); 
+                const vttUri = vscode.Uri.file(`${basePath}.vtt`);
+                const txtUri = vscode.Uri.file(`${basePath}.txt`); 
+                const dummyUri = vscode.Uri.file(`${basePath}.dummy`);
+
+                try {
+                    const jsonString = JSON.stringify(mainJsonDataRecord);
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(jsonString);
+
+                    // Write the file
+                    if (extractedJsonUri){
+                        vscode.workspace.fs.writeFile(dummyUri, data);
+                        console.log(`File saved successfully to: ${dummyUri.fsPath}`);
+                    }
+
+                } catch (error) {
+                    console.error('Error saving file:', error);
+                    vscode.window.showErrorMessage(`Failed to save file: ${error}`);
+                }        
+                
+
+            });
+
+            context.subscriptions.push(disposableInner001);
+
+        } else {
+            vscode.window.showInformationMessage('We require a webview panel to have been already opened before an Export to file');
+        }
+
     });
 
     context.subscriptions.push(webviewManager, mySubtitlesPanel, commandDisposable001, 
@@ -280,3 +444,22 @@ export function activate(context: vscode.ExtensionContext){
 export function deactivate() {
 }
 
+class MyService {
+    // Create an EventEmitter
+    private _onDidChange = new vscode.EventEmitter<string>();
+    
+    // Expose the Event (read-only)
+    readonly onDidChange: vscode.Event<string> = this._onDidChange.event;
+    
+    // Method that triggers the event
+    doSomething(message: string) {
+        
+        // Fire the event
+        this._onDidChange.fire(message);
+    }
+    
+    // Don't forget to dispose!
+    dispose() {
+        this._onDidChange.dispose();
+    }
+}

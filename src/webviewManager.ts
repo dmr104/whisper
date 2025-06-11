@@ -6,13 +6,19 @@ type myMap = Map<string | undefined, Set<[string, vscode.WebviewPanel]>>
 
 export class WebviewManager implements vscode.Disposable {
     
-    // The following variable is set within onDidChangeActiveEditor within eventListenerDisposable001 within activate function
+    // The following variable is set within onDidChangeActiveEditor within eventListenerDisposable001 within activate function.
+    // The purpose of this variable is to give us the ability to select which active webviewPanel is currently in focus, because
+    // such functionality is missing from the vscode API.  We do this by finding whether the following variable is undefined.
+    // If it is undefined then we get the value of key as undefined from within the activeWebviewForDocument mapping, and this 
+    // value gives us our active webview Panel.  If it IS defined then we know that we are within the focus of NOT a webview, i.e.
+    // most probably an active TextEditor tab
     public transientActiveDocumentUriString: string | undefined = undefined;
 
     // The following variable keeps a record of the fact that a webviewPanel with this particular viewType (a unique ID) has 
     // been created, and is associated with potentially more other webviewPanels in an association with the TextDocument.
 
-    // documentWebviews is Map < document.uri, Set of webviews >
+    // documentWebviews is Map < document.uri, Set of webviews > where the set consists of (item1, item2, ...) where
+    // itemX is [idX, webViewPanelX]
     public documentWebviews: myMap = new Map();
 
     // We need to write a helper function which will search for a particular viewType ID within the documentWebviews 
@@ -70,7 +76,7 @@ export class WebviewManager implements vscode.Disposable {
         }
     }
 
-    // We need to write a helper function which will return the associated with a particular Set within documentWebviews
+    // We need to write a helper function which will return the associated key from a particular Set within documentWebviews
     private findKeyByWebviewPanelFromDocumentWebviews(webviewPanel: vscode.WebviewPanel, myMapping: myMap): string | undefined {
         for (const [key, webviewSet] of myMapping) {
             for (const [id, panel] of webviewSet) {
@@ -81,6 +87,18 @@ export class WebviewManager implements vscode.Disposable {
         }
         return undefined; // Return undefined if not found        
     }
+
+    // We need to write a helper function which will return the associated key from a particular Set within documentWebviews
+    public findKeyByIdFromDocumentWebviews(viewTypeId: string, myMapping: myMap): string | undefined {
+        for (const [key, webviewSet] of myMapping) {
+            for (const [id, panel] of webviewSet) {
+                if (id === viewTypeId) {
+                    return key; // Return the key if the WebviewPanel matches
+                }
+            }
+        }
+        return undefined; // Return undefined if not found        
+    }    
     
     // It is a mapping between this ID and the value as the unique viewTypeID, in 
     // order to recall which was the primary webview panel which is to be shown when the corresponding TextEditor for 
@@ -91,7 +109,7 @@ export class WebviewManager implements vscode.Disposable {
 
     // The following is a map to track the primary WebviewPanel per document for speedy access referencing.
     // Map < document.uri.toString(), WebviewPanel >  
-    public primaryWebviewForDocument: Map<string | undefined, [string | undefined, vscode.WebviewPanel | undefined] | undefined> = new Map();
+    public primaryWebviewForDocument: Map<string | undefined, [string | undefined, vscode.WebviewPanel | undefined, any | undefined] | undefined> = new Map();
 
     // The following variable keeps a record of which was the lastly focused TextEditor.document
     public currentActiveDocumentUriString: string | undefined = undefined; 
@@ -99,6 +117,14 @@ export class WebviewManager implements vscode.Disposable {
     // We need the following counter to create a unique ID (viewType) for each webview.
     private static webviewCounter: number = 1;
 
+    // The following variable is a mapping between the webviewManager.currentActiveDocumentUriString and the object which contains the 
+    // actualJsonRecord stored in memory for this open TextEditor.  The idea is that when we want to dynamically update this object 
+    // we will have to look up the mapping between the currentActiveDocumentUriString and it, modify this object, and reset its mapping. 
+    // We do this in commandDisposable004.  Also to this, we will have to set its value and its mapping whenever we createOrShowWebview.  
+    // We do this in commandDisposable001.
+
+    // The following also keeps a direct association between the documentUriString and its ACTIVE webviewPanel. It is as a 1:1 mapping, 
+    // not a 1:many.  When the key is undefined we attain the precise webviewPanel which is active as its value
     public activeWebviewForDocument: Map<string | undefined, [string| undefined, vscode.WebviewPanel | undefined] | undefined> = new Map().set(undefined, undefined);
     
     public createOrShowWebview(viewType: string, title: string, presentActiveDocumentUriString: string | undefined): ReturnValue {
@@ -221,6 +247,7 @@ export class WebviewManager implements vscode.Disposable {
 
                                 // Set the entry to undefined      
                                 this.primaryWebviewForDocument.set(foundKeyFromThePanel, undefined);
+                                this.primaryWebviewForDocument.delete(foundKeyFromThePanel);
                             }                  
                         }
                     }    
@@ -256,18 +283,6 @@ export class WebviewManager implements vscode.Disposable {
             // hence the panel is already tracked, and won't become re-tracked again because we will never reach 
             // here having returned at a SHOW instead 
             this.addValueToSetOfDocumentWebviews(this.currentActiveDocumentUriString, [uniqueViewTypeId, panel], this.documentWebviews);
-
-            // primaryWebviewForDocument keeps a paired relationship record of which is the primary webview panel for 
-            // each TextDocument.  We need this importantly in order to select the primary webview panel from the 
-            // TextDocument.  IMPORTANT USER EXPERIENCE!!!! Ought this occur whenever the user is not within the 
-            // primary webview panel --- i.e. might be within a secondary webview panel, or the TextEditor panel?
-            // Answer is no. Rather than jumping Webview panels the UX would be much smoother if nothing happens upon 
-            // a createOrShowWebpanel command after we already have a primary Webview panel.  There should not be any 
-            // jumping around willy-nilly:  the user experience should be a stable one, not cryptic.  To change the
-            //  webview panel the user shall use the mouse or a builtin command perhaps attached to a keybinding. 
-            this.primaryWebviewForDocument.set(this.currentActiveDocumentUriString, [uniqueViewTypeId, panel]);
-            // This is necessary in order to select the  primaryWebviewForDocument being active so that the commands 
-            // bound to the keybindings can be sent to it
 
             this.activeWebviewForDocument.set(this.currentActiveDocumentUriString, [uniqueViewTypeId, panel]);
             // We need to set the activeWebviewForDocument for it to be accessed outside of this function, namely when 
@@ -316,7 +331,7 @@ export class WebviewManager implements vscode.Disposable {
     }
 
     public splitWebview(viewType: string, title: string): { panelFrom: vscode.WebviewPanel | undefined; panelTo: vscode.WebviewPanel | undefined} {
-  
+        
         // We need the panel which was stored in the activeWebviewForDocument Mapping for this 
         // TextDocumentUriString in order to use it later from which to populate the newly created webviewPanel.  
 
@@ -337,6 +352,54 @@ export class WebviewManager implements vscode.Disposable {
         // If we reach here then we can conclude that anArray is not undefined
         let panelFrom = anArray[1];        
  
+        // To indicate to the calling function that we wish the calling function to return, we return the following to it.
+        // The present return will only be invoked if the focus is within an active TextEditor.  Recall that 
+        // transientActiveDocumentUriString is set within an eventListener within the activate function, and will be undefined
+        // only if we are within a webview, and hence will be defined if we are not (i.e. within a TextEditor)
+        if (this.transientActiveDocumentUriString) {  // We are not within a Webview
+            vscode.window.showInformationMessage('Cannot split webview unless you have one open and in focus'); 
+            return { panelFrom: undefined, panelTo: undefined }; } 
+        
+        // The following hack is used to control what happens when we close all the webviews and the TextEditor.
+        // Without it we get unstable functionality within the User experience, with webviews opening when no
+        // TextEditor is open
+        // Obtain the ACTIVE webviewPanel
+        let myCurrentActiveWebviewForDocumentValue;
+        let myCurrentActiveWebviewForDocumentUri;
+
+        if (this.activeWebviewForDocument.has(this.transientActiveDocumentUriString)){
+            myCurrentActiveWebviewForDocumentValue = this.activeWebviewForDocument.get(this.transientActiveDocumentUriString);
+        }
+
+        if (this.activeWebviewForDocument.has(this.transientActiveDocumentUriString) &&
+        myCurrentActiveWebviewForDocumentValue ){ // we are not within a webviewPanel
+            myCurrentActiveWebviewForDocumentUri = myCurrentActiveWebviewForDocumentValue[0];
+        } // the variable as myCurrentActiveWebviewForDocumentValue is undefined before any webpanel is opened.  Thereafter it 
+        // keeps a record of the first webviewpanel opened, even if we go back to focus the Texteditor panel
+
+        // Now we will find the key corresponding with the myCurrentActiveWebviewForDocumentUri within the mapping as 
+        // webviewManager.documentWebviews with the id for the item within the set as myCurrentActiveWebviewForDocumentUri
+        let myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri: string | undefined;
+        if (myCurrentActiveWebviewForDocumentUri){
+            myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri = this.findKeyByIdFromDocumentWebviews(
+                myCurrentActiveWebviewForDocumentUri, this.documentWebviews);
+        }
+
+        let myValue;
+        if (this.primaryWebviewForDocument.has(myCurrentActiveWebviewForDocumentUri)){
+            myValue = this.primaryWebviewForDocument.get(myCurrentActiveWebviewForDocumentUri);
+        }
+
+        if (myValue && myValue[0] !== myCurrentActiveWebviewForDocumentUri){
+            vscode.window.showInformationMessage('Please open a JSON document from whisper and open a webview first'); 
+            return { panelFrom: undefined, panelTo: undefined };
+        }
+
+        
+        // If we reach here in the code we can infer that a webview is currently within focus hence 
+        // transientActiveDocumentUriString is undefined ---- IMPORTANT point to think about.
+        // If transientActiveDocumentUriString should have been defined then we will never have reached here
+
         // Make sure that the viewType ID is unique by using the same counter as within createOrShowWebview
         const formattedNumber = WebviewManager.webviewCounter.toString().padStart(4, '0');
        
@@ -377,18 +440,6 @@ export class WebviewManager implements vscode.Disposable {
             vscode.window.showInformationMessage('You need to open a JSON output file from openAI whisper speech to text recognition');
         }       
 
-        // To indicate to the calling function that we wish the calling function to return, we return the following to it.
-        // The present return will only be invoked if the focus is within an active TextEditor.  Recall that 
-        // transientActiveDocumentUriString is set within an eventListener within the activate function, and will be undefined
-        // only if we are within a webview, and hence will be defined if we are not (i.e. within a TextEditor)
-        if (this.transientActiveDocumentUriString) {
-            vscode.window.showInformationMessage('Cannot split webview unless you have one open and in focus'); 
-            return { panelFrom: undefined, panelTo: undefined }; } 
-        
-        // If we reach here in the code we can infer that a webview is currently within focus hence 
-        // transientActiveDocumentUriString is undefined ---- IMPORTANT point to think about.
-        // If transientActiveDocumentUriString should have been defined then we will never have reached here
-
         // We must set the activeWebviewForDocument to record the new activeWebviewPanel that has been created.  This is done 
         // so that this active webview will have an association to be used later.  Recall that transientActiveDocumentUriString 
         // is set within the onDidChangeActiveTextEditor callback within eventListenerDisposable001 with the activate function, 
@@ -411,6 +462,7 @@ export class WebviewManager implements vscode.Disposable {
 
         this.activeWebviewForDocument.set(this.transientActiveDocumentUriString, [uniqueViewTypeId , panelNew]);
         
+        // We can set a disposable onDidChangeViewState upon the webviewPanel panelNew
         const viewStateDisposable = panelNew.onDidChangeViewState((e: vscode.WebviewPanelOnDidChangeViewStateEvent) => { 
             const webviewPanel = e.webviewPanel;
             if (webviewPanel.active){
