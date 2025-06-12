@@ -68,9 +68,17 @@ export function activate(context: vscode.ExtensionContext){
         const presentActiveDocument: vscode.TextDocument | undefined = presentActiveTextEditor?.document;
         const presentActiveDocumentUriString: string | undefined = presentActiveDocument?.uri.toString();
 
+        if (presentActiveDocumentUriString && /\.json$/i.test(presentActiveDocumentUriString)){
+        } else {
+            vscode.window.showInformationMessage( 'You need to focus within a JSON file which is the output of openAI whisper before you can view the text within a Webview');
+            return;
+        }
+
         if (presentActiveDocumentUriString){
             webviewManager.currentActiveDocumentUriString = presentActiveDocumentUriString;
-        } else { vscode.window.showInformationMessage( 'You need to open a JSON file which is the output of openAI whisper before you can view the text within a Webview');}
+        } else { 
+            vscode.window.showInformationMessage( 'You need to open a JSON file which is the output of openAI whisper before you can view the text within a Webview');
+        }
 
         // We need to extract the first item of the array (which is the value of the key within 
         // webviewManager.primaryWebviewForDocument).  This is in order to obtain the string which is the first 
