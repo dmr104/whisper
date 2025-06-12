@@ -147,7 +147,7 @@
 		const myID = afterStoredDiv.id;
 		const divInnerHTML = afterStoredDiv.innerHTML;
 
-		processUpdateToExt(divID, divInnerHTML);
+		processUpdateToExt(myID, divInnerHTML);
 
 	}
 
@@ -342,7 +342,7 @@
 		segment.contentEditable="true";
 		segment.className = 'segment';
 		segment.id = id;
-		segment.innerText = mytext;
+		segment.innerHTML = mytext;
 		splurgeContainer.appendChild(segment);
 	}
 	

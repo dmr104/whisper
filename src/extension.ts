@@ -68,6 +68,8 @@ export function activate(context: vscode.ExtensionContext){
         const presentActiveDocument: vscode.TextDocument | undefined = presentActiveTextEditor?.document;
         const presentActiveDocumentUriString: string | undefined = presentActiveDocument?.uri.toString();
 
+        // This is to prevent an error appearing in the console if we initiate createOrShowWebview from within an srt file,
+        // a vtt file, or a text file, or what have you
         if (presentActiveDocumentUriString && /\.json$/i.test(presentActiveDocumentUriString)){
         } else {
             vscode.window.showInformationMessage( 'You need to focus within a JSON file which is the output of openAI whisper before you can view the text within a Webview');
@@ -135,6 +137,7 @@ export function activate(context: vscode.ExtensionContext){
                         if (presentActiveDocument){ // The following logic sets the result as the value of a mapping between the 
                             // webviewManager.currentActiveDocumentUriString and it
                             let mainJSonDataRecord = await mySubtitlesPanel.populateWebviewFromFile(presentActiveDocument, webviewPanel);
+                            console.log(mainJSonDataRecord);
                             // We must also set 
                             webviewManager.primaryWebviewForDocument.set(webviewManager.currentActiveDocumentUriString, [uniqueViewTypeId, webviewPanel, mainJSonDataRecord]);
                             // This is necessary in order to select the primaryWebviewForDocument being active so that the commands 
