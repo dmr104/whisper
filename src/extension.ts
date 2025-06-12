@@ -3,8 +3,9 @@ import { SubtitlesPanel } from './subtitlesPanel';
 import { SubtitlesWebviewViewProvider } from './subtitlesWebviewViewProvider';
 import { WebviewManager, ReturnValue } from './webviewManager';
 import { ActivityWebviewViewProvider } from './activitybarWebviewViewProvider';
+import { EventEmitter } from './eventEmitter';
+import { WhisperFormatter } from './outputFileFormatter';
 import { resolve } from 'path';
-import { resourceLimits } from 'worker_threads';
 
 export function activate(context: vscode.ExtensionContext){
 
@@ -47,7 +48,13 @@ export function activate(context: vscode.ExtensionContext){
 
     //Initiate another for the activity bar button webview view
     const myActivitybarWebviewviewProvider = new ActivityWebviewViewProvider(context.extensionUri);
-      
+
+    // This is located within the util.ts
+    const myEventEmitter = new EventEmitter();
+
+    // We need this AI generated class to format the outputs in order to export
+    const myWhisperFormatter = new WhisperFormatter();
+
     const commandDisposable001 = vscode.commands.registerCommand("whisperedit.createOrShowWebview", () => {
                                   // I M P O R T A N T ! ! ! ! 
         // We want that each each webview creation will only happen once.  Thereafter we will 
@@ -335,14 +342,11 @@ export function activate(context: vscode.ExtensionContext){
 
         let universalTextField = "";
         let dynamicSplurge = "";
-        let currentValue: any = null;
       
-        // Create service instance
-        const myService = new MyService();
 
         // Clean up when done
         // disposable.dispose();
-        // myService.dispose();
+        // myEventEmitter.dispose();
 
         if (associatedPrimaryWebViewPanel && mainJsonDataRecord){
             // We need to set an eventListener as onDidReceiveMessage upon the webview.
@@ -350,13 +354,12 @@ export function activate(context: vscode.ExtensionContext){
                 switch (message.type) {
                     case 'gotWholeSplurgeFromDOM':
                         // Trigger the event
-                        myService.doSomething(message.data);
-                        
+                        myEventEmitter.doSomething(message.data); 
                 }
             });      
 
             // Listen to the event
-            const disposableInner001 = myService.onDidChange((message: string) => {
+            const disposableInner001 = myEventEmitter.onDidChange((message: string) => {
                 // console.log(`Event received: ${message}`);
                 vscode.window.showInformationMessage(`Got event from onDidReceiveMessage`);
                 dynamicSplurge = message;
@@ -405,25 +408,122 @@ export function activate(context: vscode.ExtensionContext){
 
                 const srtUri = vscode.Uri.file(`${basePath}.srt`); 
                 const vttUri = vscode.Uri.file(`${basePath}.vtt`);
-                const txtUri = vscode.Uri.file(`${basePath}.txt`); 
-                const dummyUri = vscode.Uri.file(`${basePath}.dummy`);
+                const txtUri = vscode.Uri.file(`${basePath}.enriched.txt`);
+                const plainTxtUri = vscode.Uri.file(`${basePath}.plain.txt`); 
+                const dummyUri = vscode.Uri.file(`${basePath}.json`);
+                const htmlUri = vscode.Uri.file(`${basePath}.html`);
+                
+                const encoder = new TextEncoder();
 
+                // The following command is an accessor function which loads the data into the 
+                // instance of the class as WhisperFormatter.  
+                myWhisperFormatter.inputMainJsonDataRecord(mainJsonDataRecord);
+                
+                // I choose not to hide all my functionality with a cryptic to read helper function
+                // because I like to be able to see what is going on iteratively. 
+
+                // SRT
+                try {
+                    const srtFormatted = myWhisperFormatter.toSRT();
+                    const data = encoder.encode(srtFormatted);
+                    vscode.workspace.fs.writeFile(srtUri, data);
+                    console.log(`srt file saved successfully to: ${srtUri.fsPath}`);
+                } catch (error) {
+                    console.error('Error saving srt file:', error);
+                    vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
+                }
+
+                // VTT
+                try {
+                    const vttFormatted = myWhisperFormatter.toVTT();
+                    const data = encoder.encode(vttFormatted);
+                    vscode.workspace.fs.writeFile(vttUri, data);
+                    console.log(`vtt file saved successfully to: ${vttUri.fsPath}`);
+                } catch (error) {
+                    console.error('Error saving srt file:', error);
+                    vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
+                }
+
+                // TXT -- Note that this will contain the html strong, italics and underline 
+                // tags for easy export of the html source to be imported into browsers or what 
+                // have you.  The presumption being that if the  user should not want these tags 
+                // then he/she would not have used them in the first place. So we don't wish to 
+                // lose them.  To lose them would be a trivial case of using html.textContent on
+                // mainJsonDataRecord.text, which we do in the plain.txt file which is output.
+                try {
+                    const data = encoder.encode(mainJsonDataRecord.text);
+                    vscode.workspace.fs.writeFile(txtUri, data);
+                    console.log(`enriched txt file saved successfully to: ${txtUri.fsPath}`);
+                } catch (error) {
+                    console.error('Error saving srt file:', error);
+                    vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
+                }
+
+                // PLAIN.TXT
+                try {
+                    const regexp = /<(strong|em|u)\b[^>]*>(.*?)<\/\1>/g;
+                    const strippedText = mainJsonDataRecord.text.replace(regexp, (match: string, p1: string, p2: string): string => p2);
+                    const data = encoder.encode(strippedText);
+                    vscode.workspace.fs.writeFile(plainTxtUri, data);
+                    console.log(`plain text file saved successfully to: ${plainTxtUri.fsPath}`);
+                } catch (error) {
+                    console.error('Error saving srt file:', error);
+                    vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
+                }
+
+                // JSON
                 try {
                     const jsonString = JSON.stringify(mainJsonDataRecord);
-                    const encoder = new TextEncoder();
                     const data = encoder.encode(jsonString);
 
                     // Write the file
                     if (extractedJsonUri){
                         vscode.workspace.fs.writeFile(dummyUri, data);
-                        console.log(`File saved successfully to: ${dummyUri.fsPath}`);
+                        console.log(`JSON file saved successfully to: ${dummyUri.fsPath}`);
                     }
 
                 } catch (error) {
-                    console.error('Error saving file:', error);
-                    vscode.window.showErrorMessage(`Failed to save file: ${error}`);
+                    console.error('Error saving JSON file:', error);
+                    vscode.window.showErrorMessage(`Failed to save JSON file: ${error}`);
                 }        
                 
+                // HTML
+                const UserWordTemplate = 'UserWordTemplate.html';
+                try {
+                    // Create URI for the template file
+                    const templateUri = vscode.Uri.joinPath(
+                        context.extensionUri, 
+                        'MSWordTemplate', 
+                        UserWordTemplate
+                    );
+                    const htmlStringPromise = ( async () => {
+                        try {
+                            // Read file using VS Code's file system API
+                            const fileData = await vscode.workspace.fs.readFile(templateUri);
+                            let htmlContent = Buffer.from(fileData).toString('utf8');
+                            const regex = new RegExp(`\\$\\{booglies\\}`, 'g');
+                            
+                            //const regex = new RegExp(`paragraph`, 'g');
+                            htmlContent = htmlContent.replace(regex, mainJsonDataRecord.text);   
+                            // console.log('htmlContent is ', htmlContent);
+                            return htmlContent;
+
+                        } catch (error){
+                            throw new Error(`Failed to load template: ${error}`);
+                        }
+                    })();
+
+                    htmlStringPromise.then((htmlContent) => {
+                        const data = encoder.encode(htmlContent);
+                        vscode.workspace.fs.writeFile(htmlUri, data);
+                        console.log(`html file saved successfully to: ${htmlUri.fsPath}`);
+                    })
+                    .catch(error => {throw new Error(`Error within Promise htmlStringPromise ${error}`);});
+
+                } catch (error) {
+                    console.error('Error saving html file:', error);
+                    vscode.window.showErrorMessage(`Failed to save html file: ${error}`);
+                }
 
             });
 
@@ -444,22 +544,3 @@ export function activate(context: vscode.ExtensionContext){
 export function deactivate() {
 }
 
-class MyService {
-    // Create an EventEmitter
-    private _onDidChange = new vscode.EventEmitter<string>();
-    
-    // Expose the Event (read-only)
-    readonly onDidChange: vscode.Event<string> = this._onDidChange.event;
-    
-    // Method that triggers the event
-    doSomething(message: string) {
-        
-        // Fire the event
-        this._onDidChange.fire(message);
-    }
-    
-    // Don't forget to dispose!
-    dispose() {
-        this._onDidChange.dispose();
-    }
-}

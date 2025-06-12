@@ -49,7 +49,6 @@ export class ActivityWebviewViewProvider implements vscode.WebviewViewProvider {
     }
 
     public updateExplorer(newData: string) {
-        this._currentData = newData;
         if (this._view) {
             // Send a message to the webview script to update content
             this._view.webview.postMessage({ command: 'receiveData', data: newData });

@@ -29,6 +29,18 @@
       {
         "command": "whisperedit.exportAllFormats",
         "title": "whisperedit: export out JSON to multiple formats"
+      },
+      {
+        "command": "whisperedit.exportToSRT",
+        "title": "whisperedit: export the data to an SRT output file"
+      },
+      {
+        "command": "whisperedit.exportToVTT",
+        "title": "whisperedit: export the data to a VTT output file"
+      },
+      {
+        "command": "whisperedit.exportToTSV",
+        "title": "whisperedit: export the data to a TSV output file"
       }
     ],
     "viewsContainers": {
