@@ -33,7 +33,6 @@ export class ActivityWebviewViewProvider implements vscode.WebviewViewProvider {
                         // Invoke the command which exports all file formats
                         try {
                             await vscode.commands.executeCommand('whisperedit.exportAllFormats');
-                            console.log('Files saved successfully');
                         } catch (error) {
                             console.error('Error executing command:', error);
                         }               

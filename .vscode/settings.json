@@ -4,7 +4,7 @@
 	"json.schemas":[
 		{
 			"fileMatch": ["package.json"],
-			"url": "./schemas/package.schema.json"
+			"url": "./schemas/package2.schema.json"
 		}
 	],
 	"files.exclude": {

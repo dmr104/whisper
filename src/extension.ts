@@ -335,7 +335,6 @@ export function activate(context: vscode.ExtensionContext){
         let uniqueViewTypeId: string | undefined;
         let associatedPrimaryWebViewPanel;
         let mainJsonDataRecord = undefined;
-        console.log('HERE is ', myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri);
         let myValue = webviewManager.primaryWebviewForDocument.get(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri);
         if (myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri && myValue){
             uniqueViewTypeId = myValue[0];
@@ -374,7 +373,7 @@ export function activate(context: vscode.ExtensionContext){
                 // console.log(`Event received: ${message}`);
                 vscode.window.showInformationMessage(`Got event from onDidReceiveMessage`);
                 dynamicSplurge = message;
-                console.log('dynamicSplurge IS ', message);
+                // console.log('dynamicSplurge IS ', message);
 
                 let segments;
                 // Simple string manipulation.  segments is an array of dynamically altered copied DOM from webview
@@ -394,12 +393,12 @@ export function activate(context: vscode.ExtensionContext){
                     });
                 }
                 mainJsonDataRecord.text = universalTextField;
-                console.log('modifiedJsonDataRecord is ', mainJsonDataRecord);
+                // console.log('modifiedJsonDataRecord is ', mainJsonDataRecord);
 
                 // Now we need to write the amended modifiedJsonDataRecord to within the mapping as primaryWebviewForDocument
                 if (webviewManager.currentActiveDocumentUriString){
                     webviewManager.primaryWebviewForDocument.set(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri, [uniqueViewTypeId, associatedPrimaryWebViewPanel, mainJsonDataRecord]);    
-                    console.log('There is ', webviewManager.primaryWebviewForDocument.get(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri));  
+                    // console.log('There is ', webviewManager.primaryWebviewForDocument.get(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri));  
                 }
 
                 // Now, first we write the data structure as modifiedJsonDataRecord to the disk.  In order to do this and to write to other 
@@ -411,11 +410,11 @@ export function activate(context: vscode.ExtensionContext){
                 }
                 
                 const extractedJsonPath = extractedJsonUri?.fsPath;
-                console.log('extractedJsonUri is ', extractedJsonUri);
-                console.log('extractedPath is ', extractedJsonPath);
+                // console.log('extractedJsonUri is ', extractedJsonUri);
+                // console.log('extractedPath is ', extractedJsonPath);
 
                 const basePath = extractedJsonPath?.replace(/\.[^/.]+$/, "");
-                console.log('basePath is ', basePath);
+                // console.log('basePath is ', basePath);
 
                 const srtUri = vscode.Uri.file(`${basePath}.srt`); 
                 const vttUri = vscode.Uri.file(`${basePath}.vtt`);
@@ -438,7 +437,7 @@ export function activate(context: vscode.ExtensionContext){
                     const srtFormatted = myWhisperFormatter.toSRT();
                     const data = encoder.encode(srtFormatted);
                     vscode.workspace.fs.writeFile(srtUri, data);
-                    console.log(`srt file saved successfully to: ${srtUri.fsPath}`);
+                    // console.log(`srt file saved successfully to: ${srtUri.fsPath}`);
                 } catch (error) {
                     console.error('Error saving srt file:', error);
                     vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
@@ -449,7 +448,7 @@ export function activate(context: vscode.ExtensionContext){
                     const vttFormatted = myWhisperFormatter.toVTT();
                     const data = encoder.encode(vttFormatted);
                     vscode.workspace.fs.writeFile(vttUri, data);
-                    console.log(`vtt file saved successfully to: ${vttUri.fsPath}`);
+                    // console.log(`vtt file saved successfully to: ${vttUri.fsPath}`);
                 } catch (error) {
                     console.error('Error saving srt file:', error);
                     vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
@@ -464,7 +463,7 @@ export function activate(context: vscode.ExtensionContext){
                 try {
                     const data = encoder.encode(mainJsonDataRecord.text);
                     vscode.workspace.fs.writeFile(txtUri, data);
-                    console.log(`enriched txt file saved successfully to: ${txtUri.fsPath}`);
+                    // console.log(`enriched txt file saved successfully to: ${txtUri.fsPath}`);
                 } catch (error) {
                     console.error('Error saving srt file:', error);
                     vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
@@ -476,7 +475,7 @@ export function activate(context: vscode.ExtensionContext){
                     const strippedText = mainJsonDataRecord.text.replace(regexp, (match: string, p1: string, p2: string): string => p2);
                     const data = encoder.encode(strippedText);
                     vscode.workspace.fs.writeFile(plainTxtUri, data);
-                    console.log(`plain text file saved successfully to: ${plainTxtUri.fsPath}`);
+                    // console.log(`plain text file saved successfully to: ${plainTxtUri.fsPath}`);
                 } catch (error) {
                     console.error('Error saving srt file:', error);
                     vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
@@ -490,7 +489,7 @@ export function activate(context: vscode.ExtensionContext){
                     // Write the file
                     if (extractedJsonUri){
                         vscode.workspace.fs.writeFile(dummyUri, data);
-                        console.log(`JSON file saved successfully to: ${dummyUri.fsPath}`);
+                        // console.log(`JSON file saved successfully to: ${dummyUri.fsPath}`);
                     }
 
                 } catch (error) {
@@ -527,7 +526,7 @@ export function activate(context: vscode.ExtensionContext){
                     htmlStringPromise.then((htmlContent) => {
                         const data = encoder.encode(htmlContent);
                         vscode.workspace.fs.writeFile(htmlUri, data);
-                        console.log(`html file saved successfully to: ${htmlUri.fsPath}`);
+                        // console.log(`html file saved successfully to: ${htmlUri.fsPath}`);
                     })
                     .catch(error => {throw new Error(`Error within Promise htmlStringPromise ${error}`);});
 

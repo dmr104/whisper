@@ -1,14 +1,17 @@
 {
-  "name": "whisperedit",
-  "displayName": "WhisperEdit",
+  "name": "whisperEdit",
+  "displayName": "OpenAIWhisper",
   "description": "A way to edit the subtitles of OpenAI Whisper",
-  "version": "0.0.1",
+  "publisher": "Skellington Publishing",
+  "version": "1.0.0",
   "engines": {
     "vscode": "^1.99.0"
   },
+  "license": "SEE LICENCE IN <LICENSE>",
   "categories": [
     "Other"
   ],
+  "keywords": ["OpenAI", "whisper", "json", "vtt", "srt", "tsv", "export", "html", "txt"],
   "activationEvents":  [
   ],
   "main": "./out/extension.js",
