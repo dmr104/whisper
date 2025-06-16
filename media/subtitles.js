@@ -159,27 +159,22 @@
 
 		// Get the element where the cursor is located
 		const selection = window.getSelection();
+		console.log('selection is', selection);
 
 		if (!selection.rangeCount) {
 			return;
 		}
 
-		const range = selection.getRangeAt(0);
-	
+		let ranges = [];
 
-		// Store the start and end positions.  It is important to realise that we grab a node from the parent using
-		// parent.childNodes[i], but first we need to obtain the parent from where the cursor was located
-		// The following produces the actual text of the node.  use .parent to obtain the parent.
-		const startContainer = range.startContainer;
-		const startOffset = range.startOffset;
-		const endContainer = range.endContainer;
-		const endOffset = range.endOffset;
+		sel = window.getSelection();
 
-		const selectedText = range.toString();
-	
-		if (selectedText.length === 0) {
-			return;
+		for (let i = 0; i < sel.rangeCount; i++) {
+		ranges[i] = sel.getRangeAt(i);
 		}
+		/* Each item in the ranges array is now a range object representing one of the ranges in the current selection */
+
+		console.log('ranges array is ', ranges);
 
 		let tag;
 		switch (type) {
@@ -196,22 +191,89 @@
 			tag = 'span';
 		}
 
+		const range = selection.getRangeAt(0);
+		console.log('range is', range);
+	
+		let myText = range.startContainer;
+
+		console.log('myText', myText);
+
+		console.log('myText is', myText.nodeValue);
+
+		let myParentElement;
+   		// If it's a text node, get its parent
+        if (myText.nodeType === Node.TEXT_NODE) {
+            myParentElement = myText.parentElement;
+        } else if (myText.nodeType === Node.ELEMENT_NODE) {
+   		 myParentElement = myText; // If the common ancestor is an element, use it directly
+		}
+
+		if (myParentElement.nodeType === Node.ELEMENT_NODE && myParentElement.nodeName === 'STRONG'){
+			const regexp = /<(strong|em|u)>(.*?)<\/\1>/;
+			const originalHTML = myParentElement.outerHTML;
+			const result = originalHTML.match(regexp);
+			let myTag, cleanedText;
+			if (result){
+				const [tag, text] = result.slice(1);
+				myTag = tag;
+				cleanedText = text;
+			}
+			// Create a new text node
+        	const newNode = document.createTextNode(cleanedText);
+			myText.textContent = "hellothere";
+
+			myParentElement.outerHTML = cleanedText;
+			// Replace the selected contents
+			range.deleteContents();
+			range.selectNodeContents(myParentElement);
+			// Move cursor after the inserted node
+			// range.setStartBefore(myText);
+			// range.setEndAfter(myText);
+			// // Update selection
+			selection.removeAllRanges();
+			console.log('new range ', range);
+			// selection.addRange(range);
+			console.log("HURRAH!", originalHTML, 'cleanedText', cleanedText, 'myTag', myTag, 'myParentElement', myParentElement);
+			anotherUpdateToExt();
+			return;
+		}
+
+
+		// Store the start and end positions.  It is important to realise that we grab a node from the parent using
+		// parent.childNodes[i], but first we need to obtain the parent from where the cursor was located.
+		// The following produces the actual text of the node.  use .parent to obtain the parent.
+		const startContainer = range.startContainer;
+		const startOffset = range.startOffset;
+		const endContainer = range.endContainer;
+		const endOffset = range.endOffset;
+
+		const selectedText = range.toString();
+
+		console.log('selectedText is ', selectedText);
+	
+		if (selectedText.length === 0) {
+			return;
+		}
+
+
 		const wrapper = document.createElement(tag);
 		wrapper.textContent = selectedText;
 
+        // Replace the selected contents
 		range.deleteContents();
 		range.insertNode(wrapper);
 	
 		// Move cursor after the inserted node
 		range.setStartAfter(wrapper);
 		range.setEndAfter(wrapper);
+		// Update selection
 		selection.removeAllRanges();
 		selection.addRange(range);
 
 		// Get the common ancestor
 		// The following is to find the div containing where the mouse was clicked.  
 		// This is done in order to decide whether the commonancestor has an id, if 
-		// it does then we have a div not a strong, italic, or underline
+		// it does then we are within a div not a strong, italic, or underline
 		const commonAncestor = range.commonAncestorContainer;
 
 		// Find the index of the text node
@@ -444,8 +506,13 @@
 			
 			// // Set the start and end of the range to the desired offset
 
-			range.setStart(selectedChild, cursorState.startOffset);
-			range.setEnd(selectedChild, cursorState.endOffset);
+			// range.setStart(selectedChild, cursorState.startOffset);
+			// range.setEnd(selectedChild, cursorState.endOffset);
+
+			// Was changed to the following to avoid a console.log error upon mix and matching the undo button with manual unbold, etc. 
+
+			range.setStartBefore(selectedChild);
+			range.setEndAfter(selectedChild);
 
 			console.log('range is ', range);
 			// Clear any existing selection and apply the new range
