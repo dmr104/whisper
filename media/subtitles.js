@@ -208,7 +208,13 @@
    		 myParentElement = myText; // If the common ancestor is an element, use it directly
 		}
 
-		if (myParentElement.nodeType === Node.ELEMENT_NODE && myParentElement.nodeName === 'STRONG'){
+		console.log('myParentElement.nodeName is ', myParentElement.nodeName);
+		console.log('myParentElement.nodeType is ', myParentElement.nodeType);
+		
+		if (myParentElement.nodeType === Node.ELEMENT_NODE && 
+			( 	myParentElement.nodeName === 'STRONG' || 
+				myParentElement.nodeName === 'U' || 
+				myParentElement.nodeName === 'EM'	)) {
 			const regexp = /<(strong|em|u)>(.*?)<\/\1>/;
 			const originalHTML = myParentElement.outerHTML;
 			const result = originalHTML.match(regexp);
@@ -218,17 +224,23 @@
 				myTag = tag;
 				cleanedText = text;
 			}
-			// Create a new text node
-        	const newNode = document.createTextNode(cleanedText);
-			myText.textContent = "hellothere";
+			console.log('cleaned text', cleanedText);
 
-			myParentElement.outerHTML = cleanedText;
-			// Replace the selected contents
+			if (tag === myTag){
+				console.log('YAY.  SUCCESS');
+				myParentElement.outerHTML = cleanedText;
+				// Replace the selected contents
+			} else {
+				const newElement = document.createElement(tag);
+				newElement.innerHTML = cleanedText;
+				console.log('My new Element', newElement);
+				myParentElement.outerHTML = newElement.outerHTML;
+			};
 			range.deleteContents();
 			range.selectNodeContents(myParentElement);
 			// Move cursor after the inserted node
-			// range.setStartBefore(myText);
-			// range.setEndAfter(myText);
+			range.setStartBefore(myText);
+			range.setEndAfter(myText);
 			// // Update selection
 			selection.removeAllRanges();
 			console.log('new range ', range);
@@ -528,10 +540,19 @@
 				return; 
 			};
 			let grabbedInnerDivByIdFromDOM = document.getElementById(undoStack[undoStack.length - 1].id);
-			// console.log('from DOM performUndoEventTextChange ', grabbedInnerDivByIdFromDOM);
-			// console.log('From blobHTML performUndoEventTextChange ', undoStack[undoStack.length - 1].blobHTML);
+			console.log('from DOM performUndoEventTextChange ', grabbedInnerDivByIdFromDOM);
+			console.log('From blobHTML performUndoEventTextChange ', undoStack[undoStack.length - 1].blobHTML);
 
 			grabbedInnerDivByIdFromDOM.outerHTML = undoStack[undoStack.length - 1].blobHTML;
+
+			let mydiv = undefined; 
+			if (undoStack.length > 0){
+				mydiv = document.getElementById(undoStack[undoStack.length - 1].id);
+			}
+			if (mydiv){
+				mydiv.focus();
+			}
+			
 		}
 
 	
