@@ -139,10 +139,15 @@ export function activate(context: vscode.ExtensionContext){
                             let mainJSonDataRecord = await mySubtitlesPanel.populateWebviewFromFile(presentActiveDocument, webviewPanel);
                             console.log(mainJSonDataRecord);
                             // We must also set 
-                            webviewManager.primaryWebviewForDocument.set(webviewManager.currentActiveDocumentUriString, [uniqueViewTypeId, webviewPanel, mainJSonDataRecord]);
+                            webviewManager.primaryWebviewForDocument.set(webviewManager.currentActiveDocumentUriString, [uniqueViewTypeId, webviewPanel]);
                             // This is necessary in order to select the primaryWebviewForDocument being active so that the commands 
-                            // bound to the keybindings can be sent to it. Note that we set the 3rd item within the array to the value as 
-                            // mainJsonDataRecord.  
+                            // bound to the keybindings can be sent to it. 
+
+                            // Note that we set the following to associate a mapping between webviewManager.currentActiveDocumentUriString
+                            // and mainJsonDataRecord. 
+                            console.log('BRIE CHEESE', webviewManager.currentActiveDocumentUriString);
+                     
+                            webviewManager.uriToJsonMapping.set(webviewManager.currentActiveDocumentUriString, mainJSonDataRecord);
 
                             // primaryWebviewForDocument keeps a paired relationship record of which is the primary webview panel for 
                             // each TextDocument.  We need this importantly in order to select the primary webview panel from the 
@@ -152,7 +157,7 @@ export function activate(context: vscode.ExtensionContext){
                             // a createOrShowWebpanel command after we already have a primary Webview panel.  There should not be any 
                             // jumping around willy-nilly:  the user experience should be a stable one, not cryptic.  To change the
                             //  webview panel the user shall use the mouse or a builtin command perhaps attached to a keybinding. 
-                            
+
                         }
                         break;
                     case 'updateText':
@@ -180,16 +185,11 @@ export function activate(context: vscode.ExtensionContext){
         // using the key which comes from an eventListener which fires upon when the TextEditor focus moves to a webview, or 
         // a webview moves to a TextEditor, or one TextEditor to another TextEditor, but never from one webview to another
         // no matter what the webviews are.  This key is called webviewManager.transientActiveDocumentUriString
-
-
+                            
     });
 
     const eventListenerDisposable001 = vscode.window.onDidChangeActiveTextEditor(editor => {
-        if (editor){
-            webviewManager.transientActiveDocumentUriString = editor.document.uri.toString();
-        } else {
-            webviewManager.transientActiveDocumentUriString = undefined;
-        }
+      
         // The API of onDidChangeACtiveTextEditor says "An Event which fires when the active editor has changed. Note that 
         // the event also fires when the active editor changes to undefined". From my own investigations I note that when the 
         // TextEditor is deselected (i.e. a webview IS selected) then the event.document.uri.toString() will also be undefined, 
@@ -206,6 +206,11 @@ export function activate(context: vscode.ExtensionContext){
         // gives us the flexibility to store only the following only when a transition of focus occurs from a webview to a 
         // TextEditor or from one TextEditor to another one, while the variable as currentActiveDocumentUriString will retain record of
         // the last TextEditor selected
+        if (editor){
+            webviewManager.transientActiveDocumentUriString = editor.document.uri.toString();
+        } else {
+            webviewManager.transientActiveDocumentUriString = undefined;
+        } 
     });
     
     const commandDisposable002 = vscode.commands.registerCommand('whisperedit.splitWebview', () => {
@@ -259,7 +264,7 @@ export function activate(context: vscode.ExtensionContext){
                 switch (message.type) {
                     case 'gotWholeSplurgeFromDOM':
                         // We need to receive the whole splurge from the panelFrom
-                        // Now it's safe to populate the DOM
+                        // Now it's safe to populate the DOM.  We posting the message.data to panelNew
                         mySubtitlesPanel.populateWebviewFromDOM(message.data, panelNew); 
                         break;
                 }
@@ -307,48 +312,45 @@ export function activate(context: vscode.ExtensionContext){
    
     const commandDisposable004 = vscode.commands.registerCommand('whisperedit.exportAllFormats', async () => {
         // Obtain the ACTIVE webviewPanel
-        let myCurrentActiveWebviewForDocumentValue;
-        let myCurrentActiveWebviewForDocumentUri;
+        let myValue: [string, vscode.WebviewPanel] | undefined = undefined;
+        let uniqueViewTypeId = undefined;
 
+        // Our goal here is to find the active webview for the document and to look up its corresponding documentUriString.
+        // We will also be able to read the variable as webviewManager.currentActiveDocumentUriString, and then refer to this
+        // variable no matter whichever corresponding webview is opened for this document.
+
+        // the variable as myValue is undefined before any webpanel is opened.  Thereafter it keeps a record of the most 
+        // recent active webviewpanel, even if we go back to focus the Texteditor panel
         if (webviewManager.activeWebviewForDocument.has(webviewManager.transientActiveDocumentUriString)){
-            myCurrentActiveWebviewForDocumentValue = webviewManager.activeWebviewForDocument.get(webviewManager.transientActiveDocumentUriString);
+            myValue = webviewManager.activeWebviewForDocument.get(webviewManager.transientActiveDocumentUriString);
         }
-
-        if (webviewManager.activeWebviewForDocument.has(webviewManager.transientActiveDocumentUriString) &&
-        myCurrentActiveWebviewForDocumentValue ){ // we are not within a webviewPanel
-            myCurrentActiveWebviewForDocumentUri = myCurrentActiveWebviewForDocumentValue[0];
-        } // the variable as myCurrentActiveWebviewForDocumentValue is undefined before any webpanel is opened.  Thereafter it 
-        // keeps a record of the first webviewpanel opened, even if we go back to focus the Texteditor panel
-
-        // Now we will find the key corresponding with the myCurrentActiveWebviewForDocumentUri within the mapping as 
-        // webviewManager.documentWebviews with the id for the item within the set as myCurrentActiveWebviewForDocumentUri
-        let myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri: string | undefined;
-        if (myCurrentActiveWebviewForDocumentUri){
-            myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri = webviewManager.findKeyByIdFromDocumentWebviews(
-                myCurrentActiveWebviewForDocumentUri, webviewManager.documentWebviews);
-        }
-
-        // We need to obtain the value as mainJsonDataRecord from the mapping as primaryWebviewForDocument with the key as 
-        // webviewManager.currentActiveDocumentUriString.
-
-        // We need also to obtain the associatedPrimaryWebViewPanel, and that as the uniqueViewTypeId.
-        let uniqueViewTypeId: string | undefined;
+        
         let associatedPrimaryWebViewPanel;
-        let mainJsonDataRecord = undefined;
-        let myValue = webviewManager.primaryWebviewForDocument.get(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri);
-        if (myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri && myValue){
+        if (myValue){
             uniqueViewTypeId = myValue[0];
             associatedPrimaryWebViewPanel = myValue[1];
-            mainJsonDataRecord = myValue[2];
         }
+
+        // Now we will find the key corresponding with the uniqueViewTypeId within the mapping as 
+        // webviewManager.documentWebviews with this id for the item within the set
+        let myCurrentKey: string | undefined = undefined;
+        // We need also to obtain the associatedPrimaryWebViewPanel, and that as the uniqueViewTypeId.
+
+        if (uniqueViewTypeId){
+            myCurrentKey = webviewManager.findKeyByIdFromDocumentWebviews(uniqueViewTypeId, webviewManager.documentWebviews);
+        }
+
+        // Let's follow the breadcrumbs.  We have obtained the active webview, and have found its corresponding
+        // documentUriString from webviewManager.documentWebviews
+
+        // We need to obtain the value as mainJsonDataRecord from the mapping as uriToJsonMapping with the key as 
+        // myCurrentKey
+        
+        let mainJsonDataRecord = webviewManager.uriToJsonMapping.get(myCurrentKey);
 
         // Now we need to update the content of mainJsonDataRecord accordingly from the associatedWebviewPanel. 
         // Note that we shall also modify the universal text property of the JSON object
 
-        // Request splurge from the active webview
-        if (associatedPrimaryWebViewPanel){
-            associatedPrimaryWebViewPanel.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
-        }
 
         let universalTextField = "";
         let dynamicSplurge = "";
@@ -357,187 +359,183 @@ export function activate(context: vscode.ExtensionContext){
         // Clean up when done
         // disposable.dispose();
         // myEventEmitter.dispose();
+        console.log('associatedPrimaryWebViewPanel', associatedPrimaryWebViewPanel);
+        // console.log('mainJsonDataRecord', mainJsonDataRecord);
 
-        if (associatedPrimaryWebViewPanel && mainJsonDataRecord){
+        if (associatedPrimaryWebViewPanel  && mainJsonDataRecord){
             // We need to set an eventListener as onDidReceiveMessage upon the webview.
             associatedPrimaryWebViewPanel.webview.onDidReceiveMessage( message => {
                 switch (message.type) {
-                    case 'gotWholeSplurgeFromDOM':
-                        // Trigger the event
-                        myEventEmitter.doSomething(message.data); 
+                    case 'anotherGotWholeSplurgeFromDOM':
+
+                        // console.log(`Event received: ${message}`);
+                        vscode.window.showInformationMessage(`Got event from onDidReceiveMessage`);
+                        dynamicSplurge = message.data;
+                        // console.log('dynamicSplurge IS ', message);
+        
+                        let segments;
+                        // Simple string manipulation.  segments is an array of dynamically altered copied DOM from webview
+                        segments = dynamicSplurge.match(/<div contenteditable="true" class="segment" id="(\d+)">(.*?)<\/div>/g);
+            
+                        if (segments) {
+                            segments.forEach(segment => {
+                                const regex = /<div contenteditable="true" class="segment" id="(\d+)">(.*?)<\/div>/;        
+                                const result = segment.match(regex);
+                                if (result){ // we have a segment of dynamically altered copied DOM from webview
+                                    const [ idMatch, contentMatch ] = result.slice(1);  // The id and content of this segment of DOM from webview
+                                    if (idMatch && contentMatch) { // Now we populate the mainJsonDataRecord with the dynamically updated stuff
+                                        universalTextField = universalTextField.concat("", contentMatch);
+                                        mainJsonDataRecord.segments[idMatch].text = contentMatch;
+                                    }
+                                }
+                            });
+                        }
+                        mainJsonDataRecord.text = universalTextField;
+                        // console.log('modifiedJsonDataRecord is ', mainJsonDataRecord);
+        
+                        // Now we need to write the amended modifiedJsonDataRecord to within the mapping as primaryWebviewForDocument
+                        if (webviewManager.currentActiveDocumentUriString){
+                            webviewManager.primaryWebviewForDocument.set(myCurrentKey, [uniqueViewTypeId, associatedPrimaryWebViewPanel]);    
+                            // console.log('There is ', webviewManager.primaryWebviewForDocument.get(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri));  
+                        }
+        
+                        // Now, first we write the data structure as modifiedJsonDataRecord to the disk.  In order to do this and to write to other 
+                        // exported data outputs we will need the Uri as the path and the filename minus the extension part.  
+                      
+                        let extractedJsonUri;
+                        if (myCurrentKey){
+                            extractedJsonUri = vscode.Uri.parse(myCurrentKey);
+                        }
+                        
+                        const extractedJsonPath = extractedJsonUri?.fsPath;
+                        // console.log('extractedJsonUri is ', extractedJsonUri);
+                        // console.log('extractedPath is ', extractedJsonPath);
+        
+                        const basePath = extractedJsonPath?.replace(/\.[^/.]+$/, "");
+                        // console.log('basePath is ', basePath);
+        
+                        const srtUri = vscode.Uri.file(`${basePath}.srt`); 
+                        const vttUri = vscode.Uri.file(`${basePath}.vtt`);
+                        const txtUri = vscode.Uri.file(`${basePath}.enriched.txt`);
+                        const plainTxtUri = vscode.Uri.file(`${basePath}.plain.txt`); 
+                        const dummyUri = vscode.Uri.file(`${basePath}.json`);
+                        const htmlUri = vscode.Uri.file(`${basePath}.html`);
+                        
+                        const encoder = new TextEncoder();
+        
+                        // The following command is an accessor function which loads the data into the 
+                        // instance of the class as WhisperFormatter.  
+                        myWhisperFormatter.inputMainJsonDataRecord(mainJsonDataRecord);
+                        
+                        // I choose not to hide all my functionality with a cryptic to read helper function
+                        // because I like to be able to see what is going on iteratively. 
+        
+                        // SRT
+                        try {
+                            const srtFormatted = myWhisperFormatter.toSRT();
+                            const data = encoder.encode(srtFormatted);
+                            vscode.workspace.fs.writeFile(srtUri, data);
+                            // console.log(`srt file saved successfully to: ${srtUri.fsPath}`);
+                        } catch (error) {
+                            console.error('Error saving srt file:', error);
+                            vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
+                        }
+        
+                        // VTT
+                        try {
+                            const vttFormatted = myWhisperFormatter.toVTT();
+                            const data = encoder.encode(vttFormatted);
+                            vscode.workspace.fs.writeFile(vttUri, data);
+                            // console.log(`vtt file saved successfully to: ${vttUri.fsPath}`);
+                        } catch (error) {
+                            console.error('Error saving srt file:', error);
+                            vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
+                        }
+        
+                        // TXT -- Note that this will contain the html strong, italics and underline 
+                        // tags for easy export of the html source to be imported into browsers or what 
+                        // have you.  The presumption being that if the  user should not want these tags 
+                        // then he/she would not have used them in the first place. So we don't wish to 
+                        // lose them.  To lose them would be a trivial case of using html.textContent on
+                        // mainJsonDataRecord.text, which we do in the plain.txt file which is output.
+                        try {
+                            const data = encoder.encode(mainJsonDataRecord.text);
+                            vscode.workspace.fs.writeFile(txtUri, data);
+                            // console.log(`enriched txt file saved successfully to: ${txtUri.fsPath}`);
+                        } catch (error) {
+                            console.error('Error saving srt file:', error);
+                            vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
+                        }
+        
+                        // PLAIN.TXT
+                        try {
+                            const regexp = /<(strong|em|u)\b[^>]*>(.*?)<\/\1>/g;
+                            const strippedText = mainJsonDataRecord.text.replace(regexp, (match: string, p1: string, p2: string): string => p2);
+                            const data = encoder.encode(strippedText);
+                            vscode.workspace.fs.writeFile(plainTxtUri, data);
+                            // console.log(`plain text file saved successfully to: ${plainTxtUri.fsPath}`);
+                        } catch (error) {
+                            console.error('Error saving srt file:', error);
+                            vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
+                        }
+        
+                        // JSON
+                        try {
+                            const jsonString = JSON.stringify(mainJsonDataRecord);
+                            const data = encoder.encode(jsonString);
+        
+                            // Write the file
+                            if (extractedJsonUri){
+                                vscode.workspace.fs.writeFile(dummyUri, data);
+                                // console.log(`JSON file saved successfully to: ${dummyUri.fsPath}`);
+                            }
+        
+                        } catch (error) {
+                            console.error('Error saving JSON file:', error);
+                            vscode.window.showErrorMessage(`Failed to save JSON file: ${error}`);
+                        }        
+                        
+                        // HTML
+                        const UserWordTemplate = 'UserWordTemplate.html';
+                        try {
+                            // Create URI for the template file
+                            const templateUri = vscode.Uri.joinPath(
+                                context.extensionUri, 
+                                'MSWordTemplate', 
+                                UserWordTemplate
+                            );
+                            const htmlStringPromise = ( async () => {
+                                try {
+                                    // Read file using VS Code's file system API
+                                    const fileData = await vscode.workspace.fs.readFile(templateUri);
+                                    let htmlContent = Buffer.from(fileData).toString('utf8');
+                                    const regex = new RegExp(`\\$\\{booglies\\}`, 'g');
+                                    
+                                    //const regex = new RegExp(`paragraph`, 'g');
+                                    htmlContent = htmlContent.replace(regex, mainJsonDataRecord.text);   
+                                    // console.log('htmlContent is ', htmlContent);
+                                    return htmlContent;
+        
+                                } catch (error){
+                                    throw new Error(`Failed to load template: ${error}`);
+                                }
+                            })();
+        
+                            htmlStringPromise.then((htmlContent) => {
+                                const data = encoder.encode(htmlContent);
+                                vscode.workspace.fs.writeFile(htmlUri, data);
+                                // console.log(`html file saved successfully to: ${htmlUri.fsPath}`);
+                            })
+                            .catch(error => {throw new Error(`Error within Promise htmlStringPromise ${error}`);});
+        
+                        } catch (error) {
+                            console.error('Error saving html file:', error);
+                            vscode.window.showErrorMessage(`Failed to save html file: ${error}`);
+                        }
                 }
             });      
-
-            // Listen to the event
-            const disposableInner001 = myEventEmitter.onDidChange((message: string) => {
-                // console.log(`Event received: ${message}`);
-                vscode.window.showInformationMessage(`Got event from onDidReceiveMessage`);
-                dynamicSplurge = message;
-                // console.log('dynamicSplurge IS ', message);
-
-                let segments;
-                // Simple string manipulation.  segments is an array of dynamically altered copied DOM from webview
-                segments = dynamicSplurge.match(/<div contenteditable="true" class="segment" id="(\d+)">(.*?)<\/div>/g);
-    
-                if (segments) {
-                    segments.forEach(segment => {
-                        const regex = /<div contenteditable="true" class="segment" id="(\d+)">(.*?)<\/div>/;        
-                        const result = segment.match(regex);
-                        if (result){ // we have a segment of dynamically altered copied DOM from webview
-                            const [ idMatch, contentMatch ] = result.slice(1);  // The id and content of this segment of DOM from webview
-                            if (idMatch && contentMatch) { // Now we populate the mainJsonDataRecord with the dynamically updated stuff
-                                universalTextField = universalTextField.concat("", contentMatch);
-                                mainJsonDataRecord.segments[idMatch].text = contentMatch;
-                            }
-                        }
-                    });
-                }
-                mainJsonDataRecord.text = universalTextField;
-                // console.log('modifiedJsonDataRecord is ', mainJsonDataRecord);
-
-                // Now we need to write the amended modifiedJsonDataRecord to within the mapping as primaryWebviewForDocument
-                if (webviewManager.currentActiveDocumentUriString){
-                    webviewManager.primaryWebviewForDocument.set(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri, [uniqueViewTypeId, associatedPrimaryWebViewPanel, mainJsonDataRecord]);    
-                    // console.log('There is ', webviewManager.primaryWebviewForDocument.get(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri));  
-                }
-
-                // Now, first we write the data structure as modifiedJsonDataRecord to the disk.  In order to do this and to write to other 
-                // exported data outputs we will need the Uri as the path and the filename minus the extension part.  
-              
-                let extractedJsonUri;
-                if (myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri){
-                    extractedJsonUri = vscode.Uri.parse(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri);
-                }
-                
-                const extractedJsonPath = extractedJsonUri?.fsPath;
-                // console.log('extractedJsonUri is ', extractedJsonUri);
-                // console.log('extractedPath is ', extractedJsonPath);
-
-                const basePath = extractedJsonPath?.replace(/\.[^/.]+$/, "");
-                // console.log('basePath is ', basePath);
-
-                const srtUri = vscode.Uri.file(`${basePath}.srt`); 
-                const vttUri = vscode.Uri.file(`${basePath}.vtt`);
-                const txtUri = vscode.Uri.file(`${basePath}.enriched.txt`);
-                const plainTxtUri = vscode.Uri.file(`${basePath}.plain.txt`); 
-                const dummyUri = vscode.Uri.file(`${basePath}.json`);
-                const htmlUri = vscode.Uri.file(`${basePath}.html`);
-                
-                const encoder = new TextEncoder();
-
-                // The following command is an accessor function which loads the data into the 
-                // instance of the class as WhisperFormatter.  
-                myWhisperFormatter.inputMainJsonDataRecord(mainJsonDataRecord);
-                
-                // I choose not to hide all my functionality with a cryptic to read helper function
-                // because I like to be able to see what is going on iteratively. 
-
-                // SRT
-                try {
-                    const srtFormatted = myWhisperFormatter.toSRT();
-                    const data = encoder.encode(srtFormatted);
-                    vscode.workspace.fs.writeFile(srtUri, data);
-                    // console.log(`srt file saved successfully to: ${srtUri.fsPath}`);
-                } catch (error) {
-                    console.error('Error saving srt file:', error);
-                    vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
-                }
-
-                // VTT
-                try {
-                    const vttFormatted = myWhisperFormatter.toVTT();
-                    const data = encoder.encode(vttFormatted);
-                    vscode.workspace.fs.writeFile(vttUri, data);
-                    // console.log(`vtt file saved successfully to: ${vttUri.fsPath}`);
-                } catch (error) {
-                    console.error('Error saving srt file:', error);
-                    vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
-                }
-
-                // TXT -- Note that this will contain the html strong, italics and underline 
-                // tags for easy export of the html source to be imported into browsers or what 
-                // have you.  The presumption being that if the  user should not want these tags 
-                // then he/she would not have used them in the first place. So we don't wish to 
-                // lose them.  To lose them would be a trivial case of using html.textContent on
-                // mainJsonDataRecord.text, which we do in the plain.txt file which is output.
-                try {
-                    const data = encoder.encode(mainJsonDataRecord.text);
-                    vscode.workspace.fs.writeFile(txtUri, data);
-                    // console.log(`enriched txt file saved successfully to: ${txtUri.fsPath}`);
-                } catch (error) {
-                    console.error('Error saving srt file:', error);
-                    vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
-                }
-
-                // PLAIN.TXT
-                try {
-                    const regexp = /<(strong|em|u)\b[^>]*>(.*?)<\/\1>/g;
-                    const strippedText = mainJsonDataRecord.text.replace(regexp, (match: string, p1: string, p2: string): string => p2);
-                    const data = encoder.encode(strippedText);
-                    vscode.workspace.fs.writeFile(plainTxtUri, data);
-                    // console.log(`plain text file saved successfully to: ${plainTxtUri.fsPath}`);
-                } catch (error) {
-                    console.error('Error saving srt file:', error);
-                    vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
-                }
-
-                // JSON
-                try {
-                    const jsonString = JSON.stringify(mainJsonDataRecord);
-                    const data = encoder.encode(jsonString);
-
-                    // Write the file
-                    if (extractedJsonUri){
-                        vscode.workspace.fs.writeFile(dummyUri, data);
-                        // console.log(`JSON file saved successfully to: ${dummyUri.fsPath}`);
-                    }
-
-                } catch (error) {
-                    console.error('Error saving JSON file:', error);
-                    vscode.window.showErrorMessage(`Failed to save JSON file: ${error}`);
-                }        
-                
-                // HTML
-                const UserWordTemplate = 'UserWordTemplate.html';
-                try {
-                    // Create URI for the template file
-                    const templateUri = vscode.Uri.joinPath(
-                        context.extensionUri, 
-                        'MSWordTemplate', 
-                        UserWordTemplate
-                    );
-                    const htmlStringPromise = ( async () => {
-                        try {
-                            // Read file using VS Code's file system API
-                            const fileData = await vscode.workspace.fs.readFile(templateUri);
-                            let htmlContent = Buffer.from(fileData).toString('utf8');
-                            const regex = new RegExp(`\\$\\{booglies\\}`, 'g');
-                            
-                            //const regex = new RegExp(`paragraph`, 'g');
-                            htmlContent = htmlContent.replace(regex, mainJsonDataRecord.text);   
-                            // console.log('htmlContent is ', htmlContent);
-                            return htmlContent;
-
-                        } catch (error){
-                            throw new Error(`Failed to load template: ${error}`);
-                        }
-                    })();
-
-                    htmlStringPromise.then((htmlContent) => {
-                        const data = encoder.encode(htmlContent);
-                        vscode.workspace.fs.writeFile(htmlUri, data);
-                        // console.log(`html file saved successfully to: ${htmlUri.fsPath}`);
-                    })
-                    .catch(error => {throw new Error(`Error within Promise htmlStringPromise ${error}`);});
-
-                } catch (error) {
-                    console.error('Error saving html file:', error);
-                    vscode.window.showErrorMessage(`Failed to save html file: ${error}`);
-                }
-
-            });
-
-            context.subscriptions.push(disposableInner001);
+            // Request splurge from the active webview
+            associatedPrimaryWebViewPanel.webview.postMessage({ getDataFromDOM: 'anotherGrabWholeSplurgeFromWebview' });
 
         } else {
             vscode.window.showInformationMessage('We require a webview panel to have been already opened before an Export to file');

@@ -109,10 +109,12 @@ export class WebviewManager implements vscode.Disposable {
 
     // The following is a map to track the primary WebviewPanel per document for speedy access referencing.
     // Map < document.uri.toString(), WebviewPanel >  
-    public primaryWebviewForDocument: Map<string | undefined, [string | undefined, vscode.WebviewPanel | undefined, any | undefined] | undefined> = new Map();
+    public primaryWebviewForDocument: Map<string | undefined, [string | undefined, vscode.WebviewPanel | undefined] | undefined> = new Map();
 
     // The following variable keeps a record of which was the lastly focused TextEditor.document
-    public currentActiveDocumentUriString: string | undefined = undefined; 
+    public currentActiveDocumentUriString: string | undefined = undefined;
+    
+    public uriToJsonMapping: Map<string | undefined, any> = new Map();
 
     // We need the following counter to create a unique ID (viewType) for each webview.
     private static webviewCounter: number = 1;
@@ -125,7 +127,7 @@ export class WebviewManager implements vscode.Disposable {
 
     // The following also keeps a direct association between the documentUriString and its ACTIVE webviewPanel. It is as a 1:1 mapping, 
     // not a 1:many.  When the key is undefined we attain the precise webviewPanel which is active as its value
-    public activeWebviewForDocument: Map<string | undefined, [string| undefined, vscode.WebviewPanel | undefined] | undefined> = new Map().set(undefined, undefined);
+    public activeWebviewForDocument: Map<string | undefined, [string, vscode.WebviewPanel] | undefined> = new Map().set(undefined, undefined);
     
     public createOrShowWebview(viewType: string, title: string, presentActiveDocumentUriString: string | undefined): ReturnValue {
 
@@ -161,7 +163,7 @@ export class WebviewManager implements vscode.Disposable {
         let panel: vscode.WebviewPanel;
         panel = vscode.window.createWebviewPanel(
             uniqueViewTypeId,
-            title,
+            uniqueViewTypeId, // was title
             vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -288,7 +290,7 @@ export class WebviewManager implements vscode.Disposable {
             // We need to set the activeWebviewForDocument for it to be accessed outside of this function, namely when 
             // we are within registerCommand('createOrShowWebview') within activate when we shall invoke
             // const value = this.activeWebviewForDocument.get(this.transientActiveDocumentUriString); 
-            // where hopefully transientActiveDocumentUriString will be the same string that that currentActiveDocumentUriString
+            // where hopefully transientActiveDocumentUriString will be the same string that the currentActiveDocumentUriString
             // was in the setting.  This will lead to a good user experience as if the TextEditor is has not been clicked 
             // upon but is currently open at the point the extension starts or restarts then the currentActiveDocumentUriString
             // will be the key stored in the mapping as activeWebviewForDocument, which key will hopefully have the same 
@@ -409,7 +411,7 @@ export class WebviewManager implements vscode.Disposable {
 
         let panelNew: vscode.WebviewPanel = vscode.window.createWebviewPanel(
             uniqueViewTypeId,
-            title,
+            uniqueViewTypeId,  // was title
             vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -507,11 +509,6 @@ export class WebviewManager implements vscode.Disposable {
                     const value = this.activeWebviewForDocument.get(foundKeyFromThePanel);
                     // Check whether the value exists and clear it
                     if (value) {
-                        // Clear the array contents
-                        value[1] = undefined; // Set the WebviewPanel to undefined
-    
-                        // Optionally, you can also clear the string if needed
-                        value[0] = undefined; // Set the string to undefined
     
                         // Set the entry to undefined      
                         this.activeWebviewForDocument.delete(foundKeyFromThePanel);
@@ -584,11 +581,6 @@ export class WebviewManager implements vscode.Disposable {
         for (const [key, myArray] of this.activeWebviewForDocument){
             // Check whether the value exists and clear it
                 if (myArray) {
-                    // Clear the array contents
-                    myArray[1] = undefined; // Set the WebviewPanel to undefined
-
-                    // Optionally, you can also clear the string if needed
-                    myArray[0] = undefined; // Set the string to undefined
 
                     // Set the entry to undefined      
                 this.primaryWebviewForDocument.set(key, undefined);

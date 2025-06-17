@@ -68,7 +68,16 @@
 			if (message.getDataFromDOM === 'grabWholeSplurgeFromWebview'){
 				const currentSplurgeElement = document.getElementById('splurge');
 				if (currentSplurgeElement) {
+					// Posting from webview to extension after having received the trigger from the extension
 						vscode.postMessage({ type: 'gotWholeSplurgeFromDOM', data: currentSplurgeElement.innerHTML});
+					} else {
+						console.log('Splurge element not found at the time of event.');
+				}
+			}
+			if (message.getDataFromDOM === 'anotherGrabWholeSplurgeFromWebview'){
+				const currentSplurgeElement = document.getElementById('splurge');
+				if (currentSplurgeElement) {
+						vscode.postMessage({ type: 'anotherGotWholeSplurgeFromDOM', data: currentSplurgeElement.innerHTML});
 					} else {
 						console.log('Splurge element not found at the time of event.');
 				}
@@ -76,6 +85,7 @@
 		});
 
 		window.addEventListener('message', event => {
+			// We are now in the process of broadcasting from one webview to many via the extension middleman
 			const message = event.data;
 			if (message.postDataFromExtension === 'grabbedWholeSplurge') {
 				let myGrabbedSplurge = document.getElementById('splurge');
@@ -245,7 +255,7 @@
 			selection.removeAllRanges();
 			console.log('new range ', range);
 			// selection.addRange(range);
-			console.log("HURRAH!", originalHTML, 'cleanedText', cleanedText, 'myTag', myTag, 'myParentElement', myParentElement);
+			
 			anotherUpdateToExt();
 			return;
 		}
@@ -535,13 +545,13 @@
 	}
 
 	function performUndoEventTextChange () {
-		console.log('From undostack ', undoStack);
+		// console.log('From undostack ', undoStack);
 			if (!undoStack[0]) { 
 				return; 
 			};
 			let grabbedInnerDivByIdFromDOM = document.getElementById(undoStack[undoStack.length - 1].id);
-			console.log('from DOM performUndoEventTextChange ', grabbedInnerDivByIdFromDOM);
-			console.log('From blobHTML performUndoEventTextChange ', undoStack[undoStack.length - 1].blobHTML);
+			// console.log('from DOM performUndoEventTextChange ', grabbedInnerDivByIdFromDOM);
+			// console.log('From blobHTML performUndoEventTextChange ', undoStack[undoStack.length - 1].blobHTML);
 
 			grabbedInnerDivByIdFromDOM.outerHTML = undoStack[undoStack.length - 1].blobHTML;
 
