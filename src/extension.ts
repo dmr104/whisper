@@ -3,9 +3,7 @@ import { SubtitlesPanel } from './subtitlesPanel';
 import { SubtitlesWebviewViewProvider } from './subtitlesWebviewViewProvider';
 import { WebviewManager, ReturnValue } from './webviewManager';
 import { ActivityWebviewViewProvider } from './activitybarWebviewViewProvider';
-import { EventEmitter } from './eventEmitter';
 import { WhisperFormatter } from './outputFileFormatter';
-import { resolve } from 'path';
 
 export function activate(context: vscode.ExtensionContext){
 
@@ -22,7 +20,7 @@ export function activate(context: vscode.ExtensionContext){
     // | webview |
     // ----------
 
-    // Subsequent to this, any change to webview should lead to and cause a matching dynamic granular change 
+    // Subsequent to this, any change to a webview should lead to and cause a matching dynamic granular change 
     // sent to all other webviews.
     
     // WebviewManager is an implementation of vscode.Disposable;  this makes things very convienient as 
@@ -40,7 +38,8 @@ export function activate(context: vscode.ExtensionContext){
     // The WebviewManager is one of the main dudes in our programming arsenal   
     const webviewManager = new WebviewManager();
 
-    // The html for the webview is part of the SubtitlesPanel class. So we need an instance of it. We are creating an html skeleton
+    // The html for the webview is part of the SubtitlesPanel class. So we need an instance of it. We are 
+    // creating an html skeleton
     const mySubtitlesPanel = new SubtitlesPanel(context);
 
     // Initiate the WebviewViewProvider
@@ -48,9 +47,6 @@ export function activate(context: vscode.ExtensionContext){
 
     //Initiate another for the activity bar button webview view
     const myActivitybarWebviewviewProvider = new ActivityWebviewViewProvider(context.extensionUri);
-
-    // This is located within the util.ts
-    const myEventEmitter = new EventEmitter();
 
     // We need this AI generated class to format the outputs in order to export
     const myWhisperFormatter = new WhisperFormatter();
@@ -68,8 +64,8 @@ export function activate(context: vscode.ExtensionContext){
         const presentActiveDocument: vscode.TextDocument | undefined = presentActiveTextEditor?.document;
         const presentActiveDocumentUriString: string | undefined = presentActiveDocument?.uri.toString();
 
-        // This is to prevent an error appearing in the console if we initiate createOrShowWebview from within an srt file,
-        // a vtt file, or a text file, or what have you
+        // This is to prevent an error appearing in the console if we initiate createOrShowWebview from 
+        // within an srt file, a vtt file, or a text file, or what have you
         if (presentActiveDocumentUriString && /\.json$/i.test(presentActiveDocumentUriString)){
         } else {
             vscode.window.showInformationMessage( 'You need to focus within a JSON file which is the output of openAI whisper before you can view the text within a Webview');
@@ -89,9 +85,9 @@ export function activate(context: vscode.ExtensionContext){
         // i.e. a webviewPanel, then presentActiveDocumentUriString will be undefined and our 
         // registerCommand('createOrShowWebview') will return at this point
 
-        // IMPORTANT USER EXPERIENCE!!!! Whenever the user is within even the primary webview panel or might be 
+        // IMPORTANT USER EXPERIENCE!!!! Whenever the user is within even the primary webview panel, or might be 
         // within a secondary webview panel, or a tertiary or a 4th webpanel (basically anything other than the 
-        // TextEditor panel) then rather than jumping Webview panels when the createOrShowWebviewPanel command is invoked 
+        // TextEditor panel) then rather than jumping Webview panels when the createOrShowWebviewPanel command is invoked, 
         // the UX will be much smoother where nothing happens upon a createOrShowWebpanel command after we already have 
         // a primary Webview panel.  There should not be any jumping around willy-nilly:  the user experience will be 
         // a stable one, not a cryptic one.  To change the  webview panel the user shall use the mouse or a builtin 
@@ -103,8 +99,7 @@ export function activate(context: vscode.ExtensionContext){
         }                               // WebviewManager class 
         
         const returnedValue: ReturnValue = webviewManager.createOrShowWebview(viewType, 'Webview', presentActiveDocumentUriString);
-        // our returnedValue is of form 
-        // { panel: vscode.WebviewPanel, newlyCreated: boolean}
+        // our returnedValue is of form { panel: vscode.WebviewPanel, newlyCreated: boolean}
         // The function createOrShowWebview returns a bare-bones webviewPanel, which is not containing any html skeleton 
         // or dynamic content
         
@@ -138,6 +133,7 @@ export function activate(context: vscode.ExtensionContext){
                             // webviewManager.currentActiveDocumentUriString and it
                             let mainJSonDataRecord = await mySubtitlesPanel.populateWebviewFromFile(presentActiveDocument, webviewPanel);
                             console.log(mainJSonDataRecord);
+
                             // We must also set 
                             webviewManager.primaryWebviewForDocument.set(webviewManager.currentActiveDocumentUriString, [uniqueViewTypeId, webviewPanel]);
                             // This is necessary in order to select the primaryWebviewForDocument being active so that the commands 
@@ -203,7 +199,7 @@ export function activate(context: vscode.ExtensionContext){
         // within the variable as transientActivedocumentUriString, but it is not.  It is not because currentActiveDocumentUriString 
         // will retain state after the focus of the document whose information it records is lost, while 
         // transientActiveDocumentUriString will lose its state at this point.  Therefore transientActiveDocumentUriString 
-        // gives us the flexibility to store only the following only when a transition of focus occurs from a webview to a 
+        // gives us the flexibility to store the following, only when a transition of focus occurs from a webview to a 
         // TextEditor or from one TextEditor to another one, while the variable as currentActiveDocumentUriString will retain record of
         // the last TextEditor selected
         if (editor){
@@ -234,8 +230,8 @@ export function activate(context: vscode.ExtensionContext){
         // within the function populateWebviewFromDOM attached to the webpanel arguments which are passed in as parameters.
 
         // We establish all the onDidReceiveMessage because we need to be able to handle the response from data sent 
-        // prior than sending it.  Note that the within the following internal we have panelFrom, not panelNew. 
-        // Its purpose is to initiate the receipt done to the html data from splurge from panelFrom. 
+        // prior than sending it.  Its purpose is to initiate the receipt done to the html data from splurge from panelFrom.
+        // Note that within the following we have panelFrom, not panelNew. 
 
         panelNew.webview.onDidReceiveMessage( 
             message => {
@@ -274,8 +270,6 @@ export function activate(context: vscode.ExtensionContext){
         );
         
         panelNew.webview.html = mySubtitlesPanel.getHtmlForWebview(panelNew.webview);
-        
-        // We now have received the data from the webview to the extension.
 
     });
 
@@ -319,12 +313,13 @@ export function activate(context: vscode.ExtensionContext){
         // We will also be able to read the variable as webviewManager.currentActiveDocumentUriString, and then refer to this
         // variable no matter whichever corresponding webview is opened for this document.
 
-        // the variable as myValue is undefined before any webpanel is opened.  Thereafter it keeps a record of the most 
+        // The variable as myValue is undefined before any webpanel is opened.  Thereafter it keeps a record of the most 
         // recent active webviewpanel, even if we go back to focus the Texteditor panel
         if (webviewManager.activeWebviewForDocument.has(webviewManager.transientActiveDocumentUriString)){
             myValue = webviewManager.activeWebviewForDocument.get(webviewManager.transientActiveDocumentUriString);
         }
-        
+       
+        // We need also to obtain the associatedPrimaryWebViewPanel, and that as the uniqueViewTypeId.
         let associatedPrimaryWebViewPanel;
         if (myValue){
             uniqueViewTypeId = myValue[0];
@@ -334,7 +329,6 @@ export function activate(context: vscode.ExtensionContext){
         // Now we will find the key corresponding with the uniqueViewTypeId within the mapping as 
         // webviewManager.documentWebviews with this id for the item within the set
         let myCurrentKey: string | undefined = undefined;
-        // We need also to obtain the associatedPrimaryWebViewPanel, and that as the uniqueViewTypeId.
 
         if (uniqueViewTypeId){
             myCurrentKey = webviewManager.findKeyByIdFromDocumentWebviews(uniqueViewTypeId, webviewManager.documentWebviews);
@@ -354,24 +348,16 @@ export function activate(context: vscode.ExtensionContext){
 
         let universalTextField = "";
         let dynamicSplurge = "";
-      
 
-        // Clean up when done
-        // disposable.dispose();
-        // myEventEmitter.dispose();
-        console.log('associatedPrimaryWebViewPanel', associatedPrimaryWebViewPanel);
-        // console.log('mainJsonDataRecord', mainJsonDataRecord);
-
+        // Here is where the main logic of our exportAllFormat commences
         if (associatedPrimaryWebViewPanel  && mainJsonDataRecord){
             // We need to set an eventListener as onDidReceiveMessage upon the webview.
             associatedPrimaryWebViewPanel.webview.onDidReceiveMessage( message => {
                 switch (message.type) {
                     case 'anotherGotWholeSplurgeFromDOM':
 
-                        // console.log(`Event received: ${message}`);
-                        vscode.window.showInformationMessage(`Got event from onDidReceiveMessage`);
+                        //vscode.window.showInformationMessage(`Got event from onDidReceiveMessage`);
                         dynamicSplurge = message.data;
-                        // console.log('dynamicSplurge IS ', message);
         
                         let segments;
                         // Simple string manipulation.  segments is an array of dynamically altered copied DOM from webview
@@ -391,12 +377,10 @@ export function activate(context: vscode.ExtensionContext){
                             });
                         }
                         mainJsonDataRecord.text = universalTextField;
-                        // console.log('modifiedJsonDataRecord is ', mainJsonDataRecord);
         
                         // Now we need to write the amended modifiedJsonDataRecord to within the mapping as primaryWebviewForDocument
                         if (webviewManager.currentActiveDocumentUriString){
                             webviewManager.primaryWebviewForDocument.set(myCurrentKey, [uniqueViewTypeId, associatedPrimaryWebViewPanel]);    
-                            // console.log('There is ', webviewManager.primaryWebviewForDocument.get(myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri));  
                         }
         
                         // Now, first we write the data structure as modifiedJsonDataRecord to the disk.  In order to do this and to write to other 
@@ -408,11 +392,8 @@ export function activate(context: vscode.ExtensionContext){
                         }
                         
                         const extractedJsonPath = extractedJsonUri?.fsPath;
-                        // console.log('extractedJsonUri is ', extractedJsonUri);
-                        // console.log('extractedPath is ', extractedJsonPath);
         
                         const basePath = extractedJsonPath?.replace(/\.[^/.]+$/, "");
-                        // console.log('basePath is ', basePath);
         
                         const srtUri = vscode.Uri.file(`${basePath}.srt`); 
                         const vttUri = vscode.Uri.file(`${basePath}.vtt`);
@@ -454,10 +435,10 @@ export function activate(context: vscode.ExtensionContext){
         
                         // TXT -- Note that this will contain the html strong, italics and underline 
                         // tags for easy export of the html source to be imported into browsers or what 
-                        // have you.  The presumption being that if the  user should not want these tags 
+                        // have you.  The presumption being that if the user should not want these tags 
                         // then he/she would not have used them in the first place. So we don't wish to 
                         // lose them.  To lose them would be a trivial case of using html.textContent on
-                        // mainJsonDataRecord.text, which we do in the plain.txt file which is output.
+                        // mainJsonDataRecord.text, which we will do also in the plain.txt file which is output.
                         try {
                             const data = encoder.encode(mainJsonDataRecord.text);
                             vscode.workspace.fs.writeFile(txtUri, data);
@@ -534,7 +515,10 @@ export function activate(context: vscode.ExtensionContext){
                         }
                 }
             });      
-            // Request splurge from the active webview
+            // Request splurge from the active webview.  This event is crucial.  It triggers the webview to send back to the 
+            // extension the splurge data. I have put this after I have set up the listeners within the webview for the reply 
+            // received.  Note that we still must have had ((associatedPrimaryWebViewPanel  && mainJsonDataRecord) === true) to 
+            // have had arrived here
             associatedPrimaryWebViewPanel.webview.postMessage({ getDataFromDOM: 'anotherGrabWholeSplurgeFromWebview' });
 
         } else {
