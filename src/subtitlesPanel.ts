@@ -24,7 +24,7 @@ export class SubtitlesPanel {
     private readonly _context: vscode.ExtensionContext;
     private readonly _extensionUri: vscode.Uri;
     public recordOfMessageData: string = "";
-
+  
     constructor(context: vscode.ExtensionContext){
         this._extensionUri = context.extensionUri;
         this._context = context;
@@ -93,7 +93,7 @@ export class SubtitlesPanel {
                 const seg = myJsonData.segments[i];
                 webviewPanel.webview.postMessage({ segment: seg.text, id: seg.id});
             }
-    
+
             return myJsonData;
         } catch (error) {
             vscode.window.showErrorMessage("Failed to read JSON data.");
@@ -127,6 +127,24 @@ export class SubtitlesPanel {
         if (data) {
             panelTo.webview.postMessage({ postDataFromExtension: 'grabbedWholeSplurge', data: data });
         }
+    }
+
+    public populateWebviewFromJson(myJsonData: any | undefined, panelTo: vscode.WebviewPanel){
+        if (myJsonData){
+            try {
+            // Send data from the extension to the webview in chunks
+            for (let i=0; i < myJsonData.segments.length; i++){
+                const seg = myJsonData.segments[i];
+                panelTo.webview.postMessage({ segmentFromJson: seg.text, id: seg.id});
+            }
+
+            } catch (error) {
+                vscode.window.showErrorMessage("Failed to populate webview from JSON data.");
+                console.error("Error transferring JSON data to webview:", error);
+                throw error;
+            }
+        }
+
     }
 
     public dispose(){

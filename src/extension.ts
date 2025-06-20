@@ -110,6 +110,7 @@ export function activate(context: vscode.ExtensionContext){
             return;                 // Therefore do not proceed processing any further as we are not within a CREATE and 
         }                           // therefore do not wish to populate it
 
+
         // OTHERWISE WE ARE ON A CREATE, NOT A SHOW
 
         // So extract the webpanel part of returnedValue in order to use it as the created bare-bones unpopulated webpanel. 
@@ -125,12 +126,12 @@ export function activate(context: vscode.ExtensionContext){
             async message => {
                 switch (message.type){
                     case 'webviewReady':
+
                         // Now it's safe to populate the DOM
                         // presentActiveDocument was defined as a variable near to the beginning of our 
                         // registerCommand('createOrShowWebview'). Its purpose was to store a TextDocument from activeTextEditor.document
-                        
-                        if (presentActiveDocument){ // The following logic sets the result as the value of a mapping between the 
-                            // webviewManager.currentActiveDocumentUriString and it
+
+                        if (presentActiveDocument){ 
                             let mainJSonDataRecord = await mySubtitlesPanel.populateWebviewFromFile(presentActiveDocument, webviewPanel);
                             console.log(mainJSonDataRecord);
 
@@ -143,6 +144,7 @@ export function activate(context: vscode.ExtensionContext){
                             // and mainJsonDataRecord. 
                             console.log('BRIE CHEESE', webviewManager.currentActiveDocumentUriString);
                      
+                            // We need to set a record of the mainJsonDataRecord to use within exportToFile and if the webview reload
                             webviewManager.uriToJsonMapping.set(webviewManager.currentActiveDocumentUriString, mainJSonDataRecord);
 
                             // primaryWebviewForDocument keeps a paired relationship record of which is the primary webview panel for 
@@ -152,7 +154,7 @@ export function activate(context: vscode.ExtensionContext){
                             // Answer is no. Rather than jumping Webview panels the UX would be much smoother if nothing happens upon 
                             // a createOrShowWebpanel command after we already have a primary Webview panel.  There should not be any 
                             // jumping around willy-nilly:  the user experience should be a stable one, not cryptic.  To change the
-                            //  webview panel the user shall use the mouse or a builtin command perhaps attached to a keybinding. 
+                            //  webview panel the user shall use the mouse or a builtin command perhaps attached to a keybinding.
 
                         }
                         break;
@@ -170,9 +172,10 @@ export function activate(context: vscode.ExtensionContext){
     
         // if this is a new panel, populate it with json from whisper output file.  We are using defensive programming here 
         // to check the value of panelIsNewlyCreated, but strictly this logic may be unnecessary
+        
         if (panelIsNewlyCreated) {
             // Set up the webview content skeleton from a public function of this instance of webviewPanel.
-            webviewPanel.webview.html = mySubtitlesPanel.getHtmlForWebview(webviewPanel.webview);
+            webviewPanel.webview.html = mySubtitlesPanel.getHtmlForWebview(webviewPanel.webview);    
         }
 
         // Now we must set
@@ -213,11 +216,14 @@ export function activate(context: vscode.ExtensionContext){
 
         let viewType: string = "whisperWebviewPanel";
 
-        let returnedFromSplitPanel: { panelFrom: vscode.WebviewPanel | undefined; panelTo: vscode.WebviewPanel | undefined } = 
-                webviewManager.splitWebview(viewType, 'Webview');
+        let returnedFromSplitPanel: { From: {WvIdFrom: string, panelFrom: vscode.WebviewPanel | undefined}, To: {WvIdTo: string, panelTo: vscode.WebviewPanel | undefined} } = 
+                webviewManager.splitWebview(viewType, 'Webview', context);
         
-        const panelNew: vscode.WebviewPanel | undefined= returnedFromSplitPanel.panelTo;
-        const panelFrom: vscode.WebviewPanel | undefined = returnedFromSplitPanel.panelFrom;
+        const IdFrom: string = returnedFromSplitPanel.From.WvIdFrom;
+        const IdNew: string = returnedFromSplitPanel.To.WvIdTo;
+
+        const panelFrom: vscode.WebviewPanel | undefined = returnedFromSplitPanel.From.panelFrom;
+        const panelNew: vscode.WebviewPanel | undefined = returnedFromSplitPanel.To.panelTo;
 
         if  (!panelFrom || !panelNew){  // This condition is "unless we have both defined" 
             return;                     // This return prevents us utilizing splitWebview command within a TextEditor
@@ -235,9 +241,74 @@ export function activate(context: vscode.ExtensionContext){
 
         panelNew.webview.onDidReceiveMessage( 
             message => {
+                // grab the active webview
+                const myActiveWebview = webviewManager.activeWebviewForDocument.get(undefined);
+
+                console.log('myActiveWebview', myActiveWebview);
+                let myActiveViewTypeId;
+                let myActivePanel;
+                if (myActiveWebview){
+                    myActiveViewTypeId = myActiveWebview[0];
+                    myActivePanel = myActiveWebview[1];
+                }
+                // find the docUriString key for the active webview
+                // which is the key corresponding with the myActiveViewTypeId within the mapping as 
+                // webviewManager.documentWebviews with this id for the item within the set
+                let myCurrentKey: string | undefined = undefined;
+
+                if (myActiveViewTypeId){
+                    myCurrentKey = webviewManager.findKeyByIdFromDocumentWebviews(myActiveViewTypeId, webviewManager.documentWebviews);
+                }
+                
+                // Let's follow the breadcrumbs.  We have obtained the active webview, and have found its corresponding
+                // documentUriString from webviewManager.documentWebviews
+
+                // We need to obtain the value as mainJsonDataRecord from the mapping as uriToJsonMapping with the key as 
+                // myCurrentKey
+        
+                let mainJsonDataRecord = webviewManager.uriToJsonMapping.get(myCurrentKey);
+
+                let setOfGrapes: Set<[string, vscode.WebviewPanel]> | undefined = new Set();
+                if (myCurrentKey){
+                    setOfGrapes = webviewManager.documentWebviews.get(myCurrentKey);
+                    
+                }
+                let myArrayOfGrapes: Array<[string, vscode.WebviewPanel]> = []; 
+                if (setOfGrapes){
+                    myArrayOfGrapes = Array.from(setOfGrapes);
+                }
+                const nextWithinArray = myArrayOfGrapes[0];
+        
+                const nextViewTypeId = nextWithinArray[0];
+                const nextWebviewPanel = nextWithinArray[1];
+
+                // Now we wish to find the value within primaryWebviewForDocument for the key within this mapping
+                const myValue = webviewManager.primaryWebviewForDocument.get(myCurrentKey);
+                let myPrimaryViewTypeId;
+                let myPrimaryWebviewPanel;
+
+                if (myValue){
+                    myPrimaryViewTypeId = myValue[0];
+                    myPrimaryWebviewPanel = myValue[1];
+                }
+                 
                 switch (message.type){
                     case 'webviewReady':
-                        panelFrom.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
+                        nextWebviewPanel.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
+
+                        console.log('IdFrom', IdFrom);
+                        console.log('IdNew', IdNew);
+                        console.log('myActiveViewTypeId', myActiveViewTypeId);
+                        console.log('myActivePanel', myActivePanel);
+                        console.log('myPrimaryViewTypeId', myPrimaryViewTypeId);
+                        console.log('myPrimaryWebviewPanel', myPrimaryWebviewPanel);
+                        console.log('nextViewTypeId', nextViewTypeId);
+                        // if (IdFrom === myPrimaryViewTypeId){
+                        //     panelFrom.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
+                        // }
+                        // panelFrom.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
+                        console.log('POSTED from', IdFrom, 'to', IdNew);
+                        mySubtitlesPanel.populateWebviewFromJson(mainJsonDataRecord, panelNew);
                         break;
                     case 'updateText':
                         webviewManager.broadcastToOtherWebviews(message.id, message.segmentHTML, panelNew);
@@ -260,7 +331,7 @@ export function activate(context: vscode.ExtensionContext){
                 switch (message.type) {
                     case 'gotWholeSplurgeFromDOM':
                         // We need to receive the whole splurge from the panelFrom
-                        // Now it's safe to populate the DOM.  We posting the message.data to panelNew
+                        // Now it's safe to populate the DOM.  We are posting the message.data to panelNew
                         mySubtitlesPanel.populateWebviewFromDOM(message.data, panelNew); 
                         break;
                 }
@@ -307,23 +378,24 @@ export function activate(context: vscode.ExtensionContext){
     const commandDisposable004 = vscode.commands.registerCommand('whisperedit.exportAllFormats', async () => {
         // Obtain the ACTIVE webviewPanel
         let myValue: [string, vscode.WebviewPanel] | undefined = undefined;
-        let uniqueViewTypeId = undefined;
+        let uniqueViewTypeId: string | undefined = undefined;
 
         // Our goal here is to find the active webview for the document and to look up its corresponding documentUriString.
         // We will also be able to read the variable as webviewManager.currentActiveDocumentUriString, and then refer to this
         // variable no matter whichever corresponding webview is opened for this document.
 
-        // The variable as myValue is undefined before any webpanel is opened.  Thereafter it keeps a record of the most 
-        // recent active webviewpanel, even if we go back to focus the Texteditor panel
+        // The variable as myValue is undefined before any webpanel is opened.  Thereafter (but before we refer to it) it 
+        // keeps a record of the most recent active webviewpanel, even if we (previously to reading it) go back to focus the 
+        // Texteditor panel
         if (webviewManager.activeWebviewForDocument.has(webviewManager.transientActiveDocumentUriString)){
             myValue = webviewManager.activeWebviewForDocument.get(webviewManager.transientActiveDocumentUriString);
         }
        
-        // We need also to obtain the associatedPrimaryWebViewPanel, and that as the uniqueViewTypeId.
-        let associatedPrimaryWebViewPanel;
+        // We need also to obtain the webViewPanel, and that as the uniqueViewTypeId.
+        let webViewPanel;
         if (myValue){
             uniqueViewTypeId = myValue[0];
-            associatedPrimaryWebViewPanel = myValue[1];
+            webViewPanel = myValue[1];
         }
 
         // Now we will find the key corresponding with the uniqueViewTypeId within the mapping as 
@@ -342,7 +414,7 @@ export function activate(context: vscode.ExtensionContext){
         
         let mainJsonDataRecord = webviewManager.uriToJsonMapping.get(myCurrentKey);
 
-        // Now we need to update the content of mainJsonDataRecord accordingly from the associatedWebviewPanel. 
+        // Now we need to update the content of mainJsonDataRecord accordingly from the webviewPanel. 
         // Note that we shall also modify the universal text property of the JSON object
 
 
@@ -350,9 +422,9 @@ export function activate(context: vscode.ExtensionContext){
         let dynamicSplurge = "";
 
         // Here is where the main logic of our exportAllFormat commences
-        if (associatedPrimaryWebViewPanel  && mainJsonDataRecord){
+        if (webViewPanel  && mainJsonDataRecord){
             // We need to set an eventListener as onDidReceiveMessage upon the webview.
-            associatedPrimaryWebViewPanel.webview.onDidReceiveMessage( message => {
+            webViewPanel.webview.onDidReceiveMessage( message => {
                 switch (message.type) {
                     case 'anotherGotWholeSplurgeFromDOM':
 
@@ -379,8 +451,8 @@ export function activate(context: vscode.ExtensionContext){
                         mainJsonDataRecord.text = universalTextField;
         
                         // Now we need to write the amended modifiedJsonDataRecord to within the mapping as primaryWebviewForDocument
-                        if (webviewManager.currentActiveDocumentUriString){
-                            webviewManager.primaryWebviewForDocument.set(myCurrentKey, [uniqueViewTypeId, associatedPrimaryWebViewPanel]);    
+                        if (uniqueViewTypeId){
+                            webviewManager.activeWebviewForDocument.set(myCurrentKey, [uniqueViewTypeId, webViewPanel]);    
                         }
         
                         // Now, first we write the data structure as modifiedJsonDataRecord to the disk.  In order to do this and to write to other 
@@ -517,9 +589,9 @@ export function activate(context: vscode.ExtensionContext){
             });      
             // Request splurge from the active webview.  This event is crucial.  It triggers the webview to send back to the 
             // extension the splurge data. I have put this after I have set up the listeners within the webview for the reply 
-            // received.  Note that we still must have had ((associatedPrimaryWebViewPanel  && mainJsonDataRecord) === true) to 
+            // received.  Note that we still must have had ((webViewPanel  && mainJsonDataRecord) === true) to 
             // have had arrived here
-            associatedPrimaryWebViewPanel.webview.postMessage({ getDataFromDOM: 'anotherGrabWholeSplurgeFromWebview' });
+            webViewPanel.webview.postMessage({ getDataFromDOM: 'anotherGrabWholeSplurgeFromWebview' });
 
         } else {
             vscode.window.showInformationMessage('We require a webview panel to have been already opened before an Export to file');

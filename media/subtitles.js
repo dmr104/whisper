@@ -62,6 +62,13 @@
 				addSegmentToSplurge(message.segment, message.id);
 			}
 		});
+
+		window.addEventListener ('message', event => { 
+			const message = event.data;
+			if (message.segmentFromJson){
+				addSegmentToSplurge(message.segmentFromJson, message.id);
+			}
+		});		
 	
 		window.addEventListener ('message', event => { 
 			const message = event.data;
@@ -74,6 +81,9 @@
 						console.log('Splurge element not found at the time of event.');
 				}
 			}
+			// The following replication is necessary so that when a webview is closed we don't receive instructions or 
+			// data from the export to all file formats command.  We require two data splurges for two separate chain of 
+			// instructions
 			if (message.getDataFromDOM === 'anotherGrabWholeSplurgeFromWebview'){
 				const currentSplurgeElement = document.getElementById('splurge');
 				if (currentSplurgeElement) {
@@ -169,7 +179,6 @@
 
 		// Get the element where the cursor is located
 		const selection = window.getSelection();
-		console.log('selection is', selection);
 
 		if (!selection.rangeCount) {
 			return;
@@ -202,13 +211,8 @@
 		}
 
 		const range = selection.getRangeAt(0);
-		console.log('range is', range);
 	
 		let myText = range.startContainer;
-
-		console.log('myText', myText);
-
-		console.log('myText is', myText.nodeValue);
 
 		let myParentElement;
    		// If it's a text node, get its parent
@@ -234,7 +238,6 @@
 				myTag = tag;
 				cleanedText = text;
 			}
-			console.log('cleaned text', cleanedText);
 
 			if (tag === myTag){
 				console.log('YAY.  SUCCESS');

@@ -133,11 +133,11 @@ export class WebviewManager implements vscode.Disposable {
         // because a primary webview already exists for this documentUriString
 
         const existingPanel = this.primaryWebviewForDocument.get(presentActiveDocumentUriString);
+        // The value of presentActiveDocumentUriString predicates upon the fact that when the webview was created
+        // the value of the variable as presentActiveDocument was set to vscode.window.activeTextEditor?.document
 
         if (existingPanel && existingPanel[1]) { // WE ARE NOW HERE WITHIN WEBVIEW PANEL SHOW!!!!!!!!!!
             existingPanel[1].reveal();
-            // The value of presentActiveDocumentUriString predicates upon the fact that when the webview was created
-            // the value of this variable as presentActiveDocument was set to vscode.window.activeTextEditor?.document
             return { uniqueViewTypeId: 'dummy', panel: existingPanel[1], newlyCreated: false } ;  // Within Webview Panel SHOW
         }
         // WE ARE NOW NOT ANY LONGER WITHIN WEBVIEW PANEL SHOW!!!!!!
@@ -145,6 +145,7 @@ export class WebviewManager implements vscode.Disposable {
         // We now need to create a unique viewTypeId for the creation to the webview panel, which now ensues 
 
         // Reminder: we are NOW within WEBVIEW PANEL CREATE!!!!
+
         const formattedNumber = WebviewManager.webviewCounter.toString().padStart(4, '0');
 
         const uniqueViewTypeId = `${viewType}${formattedNumber}`; 
@@ -155,10 +156,11 @@ export class WebviewManager implements vscode.Disposable {
         let panel: vscode.WebviewPanel;
         panel = vscode.window.createWebviewPanel(
             uniqueViewTypeId,
-            title,
-            vscode.ViewColumn.One,
+            uniqueViewTypeId, // title,
+            {preserveFocus: false, viewColumn: vscode.ViewColumn.One},
             {
                 enableScripts: true,
+                enableFindWidget: true,
                 retainContextWhenHidden: true
             }
         );
@@ -326,7 +328,8 @@ export class WebviewManager implements vscode.Disposable {
         return { uniqueViewTypeId: uniqueViewTypeId, panel: panel, newlyCreated: true };
     }
 
-    public splitWebview(viewType: string, title: string): { panelFrom: vscode.WebviewPanel | undefined; panelTo: vscode.WebviewPanel | undefined} {
+    public splitWebview(viewType: string, title: string, context: vscode.ExtensionContext): 
+    { From: {WvIdFrom: string, panelFrom: vscode.WebviewPanel | undefined}; To: {WvIdTo: string, panelTo: vscode.WebviewPanel | undefined}} {
         
         // We need the panel which was stored in the activeWebviewForDocument Mapping for this 
         // TextDocumentUriString in order to use it later, from which to populate the newly created webviewPanel.  
@@ -342,16 +345,18 @@ export class WebviewManager implements vscode.Disposable {
         // As a precautionary measure
         if (!anArray){
             vscode.window.showInformationMessage('Cannot split webview as you need to open a JSON output document from openai whisper and then a webview first');
-            return { panelFrom: undefined, panelTo: undefined };
+            return { From: {WvIdFrom: "", panelFrom: undefined}, To: {WvIdTo: "", panelTo: undefined }};
         }
         
         // If we reach here then we can conclude that anArray is not undefined
+        let webviewIdFrom = anArray[0];
         let panelFrom = anArray[1];        
  
         // To indicate to the calling function that we wish the calling function to return, we return the following to it.
         if (this.transientActiveDocumentUriString) {  // We are not within a Webview
             vscode.window.showInformationMessage('Cannot split webview unless you have one open and in focus'); 
-            return { panelFrom: undefined, panelTo: undefined }; } 
+            return { From: {WvIdFrom: "", panelFrom: undefined}, To: {WvIdTo: "", panelTo: undefined }};
+        } 
         // The present return will only be invoked if the focus is within an active TextEditor.  Recall that 
         // transientActiveDocumentUriString is set within an eventListener from the activate function, and will be undefined
         // only if we are within a webview, and hence will be defined if we are not (i.e. within a TextEditor)    
@@ -375,7 +380,7 @@ export class WebviewManager implements vscode.Disposable {
 
         // Now we will find the key corresponding with the myCurrentActiveWebviewForDocumentUri within the mapping as 
         // webviewManager.documentWebviews with the id for the item within the set as myCurrentActiveWebviewForDocumentUri
-        let myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri: string | undefined;
+        let myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri: string | undefined = undefined;
         if (myCurrentActiveWebviewForDocumentUri){
             myCurrentKeyFromMyCurrentActiveWebviewForDocumentUri = this.findKeyByIdFromDocumentWebviews(
                 myCurrentActiveWebviewForDocumentUri, this.documentWebviews);
@@ -388,7 +393,7 @@ export class WebviewManager implements vscode.Disposable {
 
         if (myValue && myValue[0] !== myCurrentActiveWebviewForDocumentUri){
             vscode.window.showInformationMessage('Please open a JSON document from whisper and open a webview first'); 
-            return { panelFrom: undefined, panelTo: undefined };
+            return { From: {WvIdFrom: "", panelFrom: undefined}, To: {WvIdTo: "", panelTo: undefined }};
         }
 
         // If we reach here in the code we can infer that a webview is currently within focus, hence 
@@ -403,10 +408,11 @@ export class WebviewManager implements vscode.Disposable {
         // panelNew to be cleaned up within public dispose() and also upon panel.onDidDispose. 
         let panelNew: vscode.WebviewPanel = vscode.window.createWebviewPanel(
             uniqueViewTypeId,
-            title,
-            vscode.ViewColumn.One,
+            uniqueViewTypeId, // title,
+            {preserveFocus: false, viewColumn: vscode.ViewColumn.One},
             {
                 enableScripts: true,
+                enableFindWidget: true,
                 retainContextWhenHidden: true
             }
         );
@@ -484,11 +490,15 @@ export class WebviewManager implements vscode.Disposable {
                 // webview to a TextEditor, and not that from a webview to a webview (webview.active === true), nor that from a 
                 // TextEditor to a webview (webview.active === true)
             }
-        });        
+        },
+        undefined,
+        context.subscriptions
+    );        
         
+
         panelNew.onDidDispose(() => {
             // Don't forget to dispose the eventListener disposable!!!
-            viewStateDisposable.dispose();
+            // viewStateDisposable.dispose();
 
             // We have the webview. Need to find the key and the viewTypeId
             const foundKeyFromThePanel = this.findKeyByWebviewPanelFromDocumentWebviews(panelNew, this.documentWebviews);
@@ -519,7 +529,7 @@ export class WebviewManager implements vscode.Disposable {
         // We return in order to set up the webview content skeleton within activate. We must refer to an instance of the Subtitles
         // class within activate, and this is only available within the scope of the activate function.
 
-        return { panelFrom: panelFrom, panelTo: panelNew};
+        return { From: {WvIdFrom: webviewIdFrom, panelFrom: panelFrom}, To: {WvIdTo: uniqueViewTypeId, panelTo: panelNew}};
 
     }
 
