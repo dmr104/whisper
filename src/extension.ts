@@ -220,9 +220,9 @@ export function activate(context: vscode.ExtensionContext){
                 webviewManager.splitWebview(viewType, 'Webview', context);
         
         const IdFrom: string = returnedFromSplitPanel.From.WvIdFrom;
-        const IdNew: string = returnedFromSplitPanel.To.WvIdTo;
-
         const panelFrom: vscode.WebviewPanel | undefined = returnedFromSplitPanel.From.panelFrom;
+        
+        const IdNew: string = returnedFromSplitPanel.To.WvIdTo;
         const panelNew: vscode.WebviewPanel | undefined = returnedFromSplitPanel.To.panelTo;
 
         if  (!panelFrom || !panelNew){  // This condition is "unless we have both defined" 
@@ -241,73 +241,19 @@ export function activate(context: vscode.ExtensionContext){
 
         panelNew.webview.onDidReceiveMessage( 
             message => {
-                // grab the active webview
-                const myActiveWebview = webviewManager.activeWebviewForDocument.get(undefined);
-
-                console.log('myActiveWebview', myActiveWebview);
-                let myActiveViewTypeId;
-                let myActivePanel;
-                if (myActiveWebview){
-                    myActiveViewTypeId = myActiveWebview[0];
-                    myActivePanel = myActiveWebview[1];
-                }
-                // find the docUriString key for the active webview
-                // which is the key corresponding with the myActiveViewTypeId within the mapping as 
-                // webviewManager.documentWebviews with this id for the item within the set
-                let myCurrentKey: string | undefined = undefined;
-
-                if (myActiveViewTypeId){
-                    myCurrentKey = webviewManager.findKeyByIdFromDocumentWebviews(myActiveViewTypeId, webviewManager.documentWebviews);
-                }
-                
-                // Let's follow the breadcrumbs.  We have obtained the active webview, and have found its corresponding
-                // documentUriString from webviewManager.documentWebviews
-
-                // We need to obtain the value as mainJsonDataRecord from the mapping as uriToJsonMapping with the key as 
-                // myCurrentKey
-        
-                let mainJsonDataRecord = webviewManager.uriToJsonMapping.get(myCurrentKey);
-
-                let setOfGrapes: Set<[string, vscode.WebviewPanel]> | undefined = new Set();
-                if (myCurrentKey){
-                    setOfGrapes = webviewManager.documentWebviews.get(myCurrentKey);
-                    
-                }
-                let myArrayOfGrapes: Array<[string, vscode.WebviewPanel]> = []; 
-                if (setOfGrapes){
-                    myArrayOfGrapes = Array.from(setOfGrapes);
-                }
-                const nextWithinArray = myArrayOfGrapes[0];
-        
-                const nextViewTypeId = nextWithinArray[0];
-                const nextWebviewPanel = nextWithinArray[1];
-
-                // Now we wish to find the value within primaryWebviewForDocument for the key within this mapping
-                const myValue = webviewManager.primaryWebviewForDocument.get(myCurrentKey);
-                let myPrimaryViewTypeId;
-                let myPrimaryWebviewPanel;
-
-                if (myValue){
-                    myPrimaryViewTypeId = myValue[0];
-                    myPrimaryWebviewPanel = myValue[1];
-                }
-                 
                 switch (message.type){
                     case 'webviewReady':
-                        nextWebviewPanel.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
-
-                        console.log('IdFrom', IdFrom);
-                        console.log('IdNew', IdNew);
-                        console.log('myActiveViewTypeId', myActiveViewTypeId);
-                        console.log('myActivePanel', myActivePanel);
-                        console.log('myPrimaryViewTypeId', myPrimaryViewTypeId);
-                        console.log('myPrimaryWebviewPanel', myPrimaryWebviewPanel);
-                        console.log('nextViewTypeId', nextViewTypeId);
-                        // if (IdFrom === myPrimaryViewTypeId){
-                        //     panelFrom.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
-                        // }
-                        // panelFrom.webview.postMessage({ getDataFromDOM: 'grabWholeSplurgeFromWebview' });
-                        console.log('POSTED from', IdFrom, 'to', IdNew);
+                        // We obtain the documentUriString for the bunch of grapes within which the present webviewPanel is found
+                        let myCurrentKey: string | undefined = undefined;
+                        myCurrentKey = webviewManager.findKeyByIdFromDocumentWebviews(IdNew, webviewManager.documentWebviews);
+                
+                        // We need to obtain the value as mainJsonDataRecord from the mapping as uriToJsonMapping with 
+                        // the key as myCurrentKey
+                        let mainJsonDataRecord = webviewManager.uriToJsonMapping.get(myCurrentKey);
+                        
+                        // This will have effect upon the present webviewPanel, i.e. all of them will be affected by it except
+                        // the primary one.  This suits our needs as we will be firing the json record corresponding to the bunch 
+                        // of grapes within which each webview is found
                         mySubtitlesPanel.populateWebviewFromJson(mainJsonDataRecord, panelNew);
                         break;
                     case 'updateText':
@@ -348,10 +294,10 @@ export function activate(context: vscode.ExtensionContext){
     // We want to invoke the commands as specified from package.json by the relevant webview only.  Each has a 
     // unique webviewId. We have access to the currently active webview which is stored within the array value 
     // of webviewManager.activeWebviewForDocument: Map<string | undefined, [ uniqueViewTypeId, webviewPanel ]> 
-    // with the corresponding key as undefined. 
+    // with the corresponding key as undefined
 
     // So let's get this active webview and issue it with the data of each command each time its associated 
-    // keypress happens.
+    // keypress happens
 
         let theWebviewPanel: vscode.WebviewPanel | undefined;
         // Firstly, grab the current DocumentUriString
@@ -382,11 +328,12 @@ export function activate(context: vscode.ExtensionContext){
 
         // Our goal here is to find the active webview for the document and to look up its corresponding documentUriString.
         // We will also be able to read the variable as webviewManager.currentActiveDocumentUriString, and then refer to this
-        // variable no matter whichever corresponding webview is opened for this document.
+        // variable no matter whichever corresponding webview is opened for this document
 
         // The variable as myValue is undefined before any webpanel is opened.  Thereafter (but before we refer to it) it 
-        // keeps a record of the most recent active webviewpanel, even if we (previously to reading it) go back to focus the 
-        // Texteditor panel
+        // keeps a record of the most recent active webviewpanel associated with a documentUriString, even if we 
+        // (previously to reading it) go back to focus the Texteditor panel.  When the key is undefined we attain 
+        // the precise webviewPanel which is active as its value
         if (webviewManager.activeWebviewForDocument.has(webviewManager.transientActiveDocumentUriString)){
             myValue = webviewManager.activeWebviewForDocument.get(webviewManager.transientActiveDocumentUriString);
         }
@@ -450,7 +397,7 @@ export function activate(context: vscode.ExtensionContext){
                         }
                         mainJsonDataRecord.text = universalTextField;
         
-                        // Now we need to write the amended modifiedJsonDataRecord to within the mapping as primaryWebviewForDocument
+                        // When the key is undefined we set the precise webviewPanel which is active as its value.
                         if (uniqueViewTypeId){
                             webviewManager.activeWebviewForDocument.set(myCurrentKey, [uniqueViewTypeId, webViewPanel]);    
                         }

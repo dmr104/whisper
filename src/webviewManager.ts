@@ -110,13 +110,14 @@ export class WebviewManager implements vscode.Disposable {
  
     // The following variable is a mapping between the webviewManager.currentActiveDocumentUriString and the object which contains the 
     // actualJsonRecord stored in memory for this open TextEditor. We will have to set its value and its mapping whenever 
-    // we createOrShowWebview.  We do this in commandDisposable001, and retrieve its value in commandDisposable004.    
+    // we createOrShowWebview.  We do this in commandDisposable001, and retrieve its value in commandDisposable004 and 
+    // in commandDisposable002.    
     public uriToJsonMapping: Map<string | undefined, any> = new Map();
 
     // We need the following counter to create a unique ID (viewType) for each webview.
     private static webviewCounter: number = 1;
 
-    // The following keeps a direct association between the documentUriString and its ACTIVE webviewPanel. It is as a 1:1 mapping, 
+    // The following keeps a direct association between the documentUriString and its last ACTIVE webviewPanel. It is as a 1:1 mapping, 
     // not a 1:many.  When the key is undefined we attain the precise webviewPanel which is active as its value.  This is good for 
     // us.  It allows us to select the active webview.  There was no other way to achieve this with the current API, I am afraid
     public activeWebviewForDocument: Map<string | undefined, [string, vscode.WebviewPanel] | undefined> = new Map().set(undefined, undefined);
