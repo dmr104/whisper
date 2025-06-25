@@ -157,7 +157,7 @@ export class WebviewManager implements vscode.Disposable {
         let panel: vscode.WebviewPanel;
         panel = vscode.window.createWebviewPanel(
             uniqueViewTypeId,
-            uniqueViewTypeId, // title,
+            title,
             {preserveFocus: false, viewColumn: vscode.ViewColumn.One},
             {
                 enableScripts: true,
@@ -409,7 +409,7 @@ export class WebviewManager implements vscode.Disposable {
         // panelNew to be cleaned up within public dispose() and also upon panel.onDidDispose. 
         let panelNew: vscode.WebviewPanel = vscode.window.createWebviewPanel(
             uniqueViewTypeId,
-            uniqueViewTypeId, // title,
+            title,
             {preserveFocus: false, viewColumn: vscode.ViewColumn.One},
             {
                 enableScripts: true,

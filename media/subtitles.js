@@ -193,8 +193,6 @@
 		}
 		/* Each item in the ranges array is now a range object representing one of the ranges in the current selection */
 
-		console.log('ranges array is ', ranges);
-
 		let tag;
 		switch (type) {
 		case 'bold':
@@ -222,8 +220,8 @@
    		 myParentElement = myText; // If the common ancestor is an element, use it directly
 		}
 
-		console.log('myParentElement.nodeName is ', myParentElement.nodeName);
-		console.log('myParentElement.nodeType is ', myParentElement.nodeType);
+		// console.log('myParentElement.nodeName is ', myParentElement.nodeName);
+		// console.log('myParentElement.nodeType is ', myParentElement.nodeType);
 		
 		if (myParentElement.nodeType === Node.ELEMENT_NODE && 
 			( 	myParentElement.nodeName === 'STRONG' || 
@@ -240,13 +238,11 @@
 			}
 
 			if (tag === myTag){
-				console.log('YAY.  SUCCESS');
 				myParentElement.outerHTML = cleanedText;
 				// Replace the selected contents
 			} else {
 				const newElement = document.createElement(tag);
 				newElement.innerHTML = cleanedText;
-				console.log('My new Element', newElement);
 				myParentElement.outerHTML = newElement.outerHTML;
 			};
 			range.deleteContents();
@@ -256,7 +252,6 @@
 			range.setEndAfter(myText);
 			// // Update selection
 			selection.removeAllRanges();
-			console.log('new range ', range);
 			// selection.addRange(range);
 			
 			anotherUpdateToExt();
@@ -273,8 +268,6 @@
 		const endOffset = range.endOffset;
 
 		const selectedText = range.toString();
-
-		console.log('selectedText is ', selectedText);
 	
 		if (selectedText.length === 0) {
 			return;
@@ -313,7 +306,6 @@
 		
 		// Log the index
 		// console.log('Text node index in common ancestor children:', index);
-
 
 		// Store the initial cursor position
 		const cursorState = {

@@ -68,7 +68,7 @@ export function activate(context: vscode.ExtensionContext){
         // within an srt file, a vtt file, or a text file, or what have you
         if (presentActiveDocumentUriString && /\.json$/i.test(presentActiveDocumentUriString)){
         } else {
-            vscode.window.showInformationMessage( 'You need to focus within a JSON file which is the output of openAI whisper before you can view the text within a Webview');
+            vscode.window.showInformationMessage( 'You need to focus within a JSON file which is the output of openAI whisper before you can open a(nother) Webview');
             return;
         }
 
@@ -133,7 +133,6 @@ export function activate(context: vscode.ExtensionContext){
 
                         if (presentActiveDocument){ 
                             let mainJSonDataRecord = await mySubtitlesPanel.populateWebviewFromFile(presentActiveDocument, webviewPanel);
-                            console.log(mainJSonDataRecord);
 
                             // We must also set 
                             webviewManager.primaryWebviewForDocument.set(webviewManager.currentActiveDocumentUriString, [uniqueViewTypeId, webviewPanel]);
@@ -142,7 +141,6 @@ export function activate(context: vscode.ExtensionContext){
 
                             // Note that we set the following to associate a mapping between webviewManager.currentActiveDocumentUriString
                             // and mainJsonDataRecord. 
-                            console.log('BRIE CHEESE', webviewManager.currentActiveDocumentUriString);
                      
                             // We need to set a record of the mainJsonDataRecord to use within exportToFile and if the webview reload
                             webviewManager.uriToJsonMapping.set(webviewManager.currentActiveDocumentUriString, mainJSonDataRecord);
@@ -311,7 +309,7 @@ export function activate(context: vscode.ExtensionContext){
         // A bound press has been pressed.  Send the command to the webview.
         theWebviewPanel?.webview.postMessage({ command: args.command });
         
-        vscode.window.showInformationMessage(`triggerButtonClick executed with options ${args.command}`);
+        // vscode.window.showInformationMessage(`triggerButtonClick executed with options ${args.command}`);
 
 	});
 
@@ -420,6 +418,7 @@ export function activate(context: vscode.ExtensionContext){
                         const plainTxtUri = vscode.Uri.file(`${basePath}.plain.txt`); 
                         const dummyUri = vscode.Uri.file(`${basePath}.json`);
                         const htmlUri = vscode.Uri.file(`${basePath}.html`);
+                        const tsvUri = vscode.Uri.file(`${basePath}.tsv`);
                         
                         const encoder = new TextEncoder();
         
@@ -430,6 +429,18 @@ export function activate(context: vscode.ExtensionContext){
                         // I choose not to hide all my functionality with a cryptic to read helper function
                         // because I like to be able to see what is going on iteratively. 
         
+                        // TSV
+                        try {
+                            const tsvFormatted = myWhisperFormatter.toTSV();
+                            const data = encoder.encode(tsvFormatted);
+                            vscode.workspace.fs.writeFile(tsvUri, data);
+                            console.log(`tsv file saved successfully to: ${tsvUri.fsPath}`);
+                        } catch (error) {
+                            console.error('Error saving tsv file:', error);
+                            vscode.window.showErrorMessage(`Failed to save tsv file: ${error}`);
+                        }
+
+
                         // SRT
                         try {
                             const srtFormatted = myWhisperFormatter.toSRT();

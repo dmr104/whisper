@@ -1,71 +1,68 @@
 # whisperedit README
 
-This is the README for your extension "whisperedit". After writing up a brief description, we recommend including the following sections.
+This is the README for your extension "whisperedit". This extension to vscode takes the output JSON from OpenAI Whisper, allowing the user to view the content of its text fields within one paragraph and edit it. 
+
+**IMPORTANT INFORMATION** -- This extension is __mutatative__ towards your original files.  It does **not** save an original backup copy.  If you want to keep copies of the original you *MUST* manually do this yourself before editing and exporting to file formats.  
+
+I have allowed the user to specify **bold text** via Alt+b, __underline__ via Alt-u, and *italics* via Alt+i.  There is also Undo via Alt+u.  There is a Toggle button within the webview which allows the user to see where the current segment is which corresponding to timing data chunks.  Alternatively you may wish to not see this for ease of clarity in depicting continuous text.
+
+To open a webview, press **Alt+p**.  This runs the command "whisperedit: Open or switch to subtitles webview".
+
+To split a webview, press **Alt+n**.  This runs the command "whisperedit: split the Webview".
+
+To export a particular file to all the output formats, either run "whisperedit: export out JSON to multiple formats" when the file, or any of the webviews which are current for said file, is in focus; or, within any of said webviews, click on the pencil (export) icon at the left of the screen to obtain a colourful image of some birds and use the "Export" button from there.   
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+This extension allows the user to open multiple files, of which each may have a number of webviews.  
 
-For example if there is an image subfolder under your extension project workspace:
+This was particularly irksome to implement programmatically due to the unsophisticated nature of the vscode API, in my opinion.  But I achieved it.
 
-\!\[feature X\]\(images/feature-x.png\)
+For example if there is an fileA.json in a folder under your project workspaceX, I have tested the code by putting another fileB.json within the same folder, or within a subfolder, or within a folder within a different workspace.  This alfa testing appears to indicate that the code functions as expected, unless you copy a file for which an existing webview is already open to a different location -- but realistically, the user should really not be attempting this, and I cannot cover all possible use cases. 
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+If you wish to reset ALL open webviews which have been opened for any of the JSON files, to what was originally loaded into memory from the disk, then the vscode command "Developer: Reload webviews" should do this. 
+
+If you click on the explorer icon (in the top-left of the screen) and reveal the SUBTITLES tab within the explorer, then you can see a copy of the text you are changing in real time, in addition to viewing it within the central paragraph.  Isn't that feature neat?
+
+![A screenshot of the running extension](https://github.com/dmr104/whisper/images/Screenshot_booglies_whisper.png)
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+This extension assumes that you have gotten the output JSON file from OpenAI Whisper.  I run this locally.  Be aware that the hardware runs much better with an NVIDIA GPU with at least 4GB of VRAM.  I actually ran it on a CPU only, to generate the files for my audio book, as I made the mistake/oversight of buying an Intel laptop with an Intel GPU.  A google search of "openai whisper install" might assist you.  
 
-## Extension Settings
+## Extension Commands
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+This extension contributes the following commands:
 
-For example:
+* `whisperedit.createOrShowWebview`: Do this when you have opened a JSON file via Alt+p.
+* `whisperedit.splitWebview`: In case you wish to see the same file again, so you can view one place within it in comparison to another point within it. Do this via Alt+n
+* `whisperedit.triggerButtonClick`: An internally used function to receive the keybindings. Don't use this.
+* `whisperedit.exportAllFormats`: Do this when you wish to export your changes. It is mututative to your original files.
 
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+* Try not to copy a file for which an existing webview is already open to a different location. It may mangle the filename in the newly opened panel.  Close the webview and the JSON file first.  
+
+* I decided upon a fixed decimal place for the data in the output tsv file as there are 1000 milliseconds in one second.
+
+* Occasionally, in the console, I receive a warning about maximum eventListeners of 10 being exceeded in the extension host environment. I am unable to figure out reliably how this warning is triggered but it is only an occasional warning. It does not worry me too much.  I have used 8 eventListeners in subtitles.js, and 2 in activity_panel.js, and 1 in explorer.js, totalling 11.
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+Here follows the release history of whisperedit.  You can file any bug reports if you have a github account at [whisper open source on github](https://github.com/dmr104/whisper/issues)
 
 ### 1.0.0
 
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+- Initial release of whisperedit, end of June 2025. 
 
 ---
 
-## Following extension guidelines
+## Support the developer
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+I, David Roderick, have developed this extension to meet my own needs.  But I believe it will be a godsend for journalists and audiobook creators, who record a lot of speech and need a workable way to correct the speech recognition of the machine.  If you wish to support me, you may consider purchasing a copy of a book about political economy I have written by following this link: [skellington publishing](https://dmr104.github.io/skellington/).  I have the copy of a flier sent out for my book here: [flier from a book promoter](https://github.com/dmr104/whisper/docs/flier.md) 
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+I could have charged for the installation of this extension, but I preferred to have a one button solution for the user downloading from the vscode extension marketplace, instead.  I hope to assist to faciliate better the process of journalism in places like Mexico and Nigeria, where journalists are in danger.  I also hope to get across a political message about ideas surrounding the balance of global trade, and how anxieties about the level of exports and imports are not founded within reality and are ecologically pejorative and lead to social poverty.  You can read further about what I am propounding here [link to political commentary](https://github.com/dmr104/whisper/docs/political_commentary.md)  
 
-## Working with Markdown
+### I hope I have been of assistance to you.
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
