@@ -1,4 +1,4 @@
-![image of book](https://github.com/dmr104/whisper/images/FromFlier.png)
+![image of book](https://dmr104.github.io/whisper/images/FromFlier.png)
 
 # Rivers of Imprisonment: Redefining the Metrics of Economic Success
 

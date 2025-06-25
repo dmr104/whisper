@@ -47,4 +47,4 @@ let's thank God for our au pair.
 
 I also asked AI to generate the following image of Donald Trump grinning from Trump Tower.
 
-![An image of Donald Trump grinning from Trump Tower]("https://github.com/dmr104/whisper/blob/master/images/trump_tower.jpg")
+![An image of Donald Trump grinning from Trump Tower](https://dmr104.github.io/whisper/images/trump_tower.jpg)

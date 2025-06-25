@@ -24,7 +24,7 @@ If you wish to reset ALL open webviews which have been opened for any of the JSO
 
 If you click on the explorer icon (in the top-left of the screen) and reveal the SUBTITLES tab within the explorer, then you can see a copy of the text you are changing in real time, in addition to viewing it within the central paragraph.  Isn't that feature neat?
 
-![A screenshot of the running extension](https://github.com/dmr104/whisper/images/Screenshot_booglies_whisper.png)
+![A screenshot of the running extension](https://dmr104.github.io/whisper/images/Screenshot_booglies_whisper.png)
 
 ## Requirements
 
@@ -50,7 +50,11 @@ This extension contributes the following commands:
 
 ## Release Notes
 
-Here follows the release history of whisperedit.  You can file any bug reports if you have a github account at [whisper open source on github](https://github.com/dmr104/whisper/issues)
+Here follows the release history of whisperedit.  You can file any bug reports if you have a github account at [whisper open source on github](https://github.com/dmr104/whisper/issues).
+
+You can download the source from github at [whisper open source repository](https://github.com/dmr104/whisper).
+
+I included a schema under /schemas because I intermittently, and upon this eventuality, found that the download link for the online json schema was sometimes broken.  This would be no good somewhere in South America or in Africa if the online connectivity broke.  The schema is referenced within .vscode/settings
 
 ### 1.0.0
 
@@ -60,9 +64,9 @@ Here follows the release history of whisperedit.  You can file any bug reports i
 
 ## Support the developer
 
-I, David Roderick, have developed this extension to meet my own needs.  But I believe it will be a godsend for journalists and audiobook creators, who record a lot of speech and need a workable way to correct the speech recognition of the machine.  If you wish to support me, you may consider purchasing a copy of a book about political economy I have written by following this link: [skellington publishing](https://dmr104.github.io/skellington/).  I have the copy of a flier sent out for my book here: [flier from a book promoter](https://github.com/dmr104/whisper/docs/flier.md) 
+I, David Roderick, have developed this extension to meet my own needs.  But I believe it will be a godsend for journalists and audiobook creators, who record a lot of speech and need a workable way to correct the speech recognition of the machine.  If you wish to support me, you may consider purchasing a copy of a book about political economy I have written by following this link: [skellington publishing](https://dmr104.github.io/skellington/).  I have the copy of a flier sent out for my book here: [flier from a book promoter](https://dmr104.github.io/whisper/markdown/flier) 
 
-I could have charged for the installation of this extension, but I preferred to have a one button solution for the user downloading from the vscode extension marketplace, instead.  I hope to assist to faciliate better the process of journalism in places like Mexico and Nigeria, where journalists are in danger.  I also hope to get across a political message about ideas surrounding the balance of global trade, and how anxieties about the level of exports and imports are not founded within reality and are ecologically pejorative and lead to social poverty.  You can read further about what I am propounding here [link to political commentary](https://github.com/dmr104/whisper/docs/political_commentary.md)  
+I could have charged for the installation of this extension, but I preferred to have a one button solution for the user downloading from the vscode extension marketplace, instead.  I hope to assist to faciliate better the process of journalism in places like Mexico and Nigeria, where journalists are in danger.  I also hope to get across a political message about ideas surrounding the balance of global trade, and how anxieties about the level of exports and imports are not founded within reality and are ecologically pejorative and lead to social poverty.  You can read further about what I am propounding here [link to political commentary](https://dmr104.github.io/whisper/markdown/political_commentary)  
 
 ### I hope I have been of assistance to you.
 
