@@ -1,4 +1,4 @@
-# whisperedit README
+# whisperEdit README
 
 This is the README for your extension "whisperedit". This extension to vscode takes the output JSON from OpenAI Whisper, allowing the user to view the content of its text fields within one paragraph and edit it. 
 
@@ -25,6 +25,13 @@ If you wish to reset ALL open webviews which have been opened for any of the JSO
 If you click on the explorer icon (in the top-left of the screen) and reveal the SUBTITLES tab within the explorer, then you can see a copy of the text you are changing in real time, in addition to viewing it within the central paragraph.  Isn't that feature neat?
 
 ![A screenshot of the running extension](https://dmr104.github.io/whisper/images/Screenshot_booglies_whisper.png)
+
+### Stats
+
+[![Version](https://badgen.net/vs-marketplace/v/dmr104.whisperEdit?label=version&color=blue)](https://marketplace.visualstudio.com/items?itemName=dmr104.whisperEdit)
+[![Installs](https://badgen.net/vs-marketplace/i/dmr104.whisperEdit?label=installs&color=green)](https://marketplace.visualstudio.com/items?itemName=dmr104.whisperEdit)
+[![Downloads](https://badgen.net/vs-marketplace/d/dmr104.whisperEdit?label=downloads&color=yellow)](https://marketplace.visualstudio.com/items?itemName=dmr104.whisperEdit)
+[![Rating](https://badgen.net/vs-marketplace/rating/dmr104.whisperEdit?label=rating&color=red)](https://marketplace.visualstudio.com/items?itemName=dmr104.whisperEdit)
 
 ## Requirements
 
