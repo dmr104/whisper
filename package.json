@@ -1,16 +1,40 @@
 {
   "name": "whisperEdit",
   "displayName": "OpenAIWhisper",
-  "description": "A way to edit the subtitles of OpenAI Whisper",
+  "description": "A way to edit the subtitles JSON output file from OpenAI Whisper",
   "publisher": "Booglies Software House",
   "version": "1.0.0",
   "engines": {
     "vscode": "^1.99.0"
   },
   "license": "SEE LICENCE IN <LICENSE>",
+  "pricing": "Free",
+  "bugs": {
+    "url": "https://github.com/dmr104/whisper/issues",
+    "email": "battleaxe.firebrand@gmail.com"
+  },
+  "repository": {
+  "type": "git",
+  "url": "https://github.com/dmr104/whisper"
+  },
+  "homepage": "https://booglies.co.uk",
+  "funding": {
+    "type": "individual",
+    "url": "https://dmr104.github.io/skellington/"
+  },
+  "author": { "name": "David Roderick", "email": "battleaxe.firebrand@gmail.com", "url": "https://dmr104.github.io/skellington/"},  
   "categories": [
-    "Other"
+    "Other", "Visualization"
   ],
+  "sponsor": {
+    "url": "https://dmr104.github.io/skellington/"
+  },
+  "qna": "marketplace",
+  "icon": "media/rivers_icon_menu_256.png",
+  "galleryBanner": {
+  "color": "#C80000",
+  "theme": "dark"
+  },
   "keywords": ["OpenAI", "whisper", "json", "vtt", "srt", "tsv", "export", "html", "txt"],
   "activationEvents":  [
   ],
