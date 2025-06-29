@@ -1,0 +1,57 @@
+        body {
+            font-family: system-ui, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #d9e3ed;
+        }
+        .hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            background: #4CAF50;
+            background-image: url("./DanImage02.jpg");
+            background-repeat: no-repeat;
+            background-size: cover;
+            color: rgb(63, 2, 2);
+            
+            padding-top:30%;
+            padding-bottom: 60%;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            margin: 0;
+        }
+        p {
+            line-height: 1.6;
+        }
+        .cta-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .cta-button:hover {
+            background: #45a049;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+            .cta-button {
+                width: 100%;
+                text-align: center;
+            }
+        }

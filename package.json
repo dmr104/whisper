@@ -2,7 +2,7 @@
   "name": "whisperEdit",
   "displayName": "OpenAIWhisper",
   "description": "A way to edit the subtitles of OpenAI Whisper",
-  "publisher": "Booglies Tech Software",
+  "publisher": "Booglies Software House",
   "version": "1.0.0",
   "engines": {
     "vscode": "^1.99.0"
