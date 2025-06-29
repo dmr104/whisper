@@ -58,7 +58,7 @@ export class ActivityWebviewViewProvider implements vscode.WebviewViewProvider {
         // Get the URI for the stylesheet and script to be used in the webview
         const styleVSCodeUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'vscode.css'));
         const styleMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'activity_panel.css'));
-        const imageUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'rivers100dpiSquare.jpg'));
+        const imageUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'rivers100dpiSquare.png'));
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'activity_panel.js'));
 
         // Use a nonce to only allow specific scripts to be run
