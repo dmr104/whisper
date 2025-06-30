@@ -2,7 +2,7 @@
   "name": "whisperEdit",
   "displayName": "OpenAI Whisper Edit",
   "description": "A way to edit the subtitles JSON output file from OpenAI Whisper",
-  "publisher": "Booglies-Software-House",
+  "publisher": "dmr104",
   "version": "1.0.0",
   "engines": {
     "vscode": "^1.99.0"
