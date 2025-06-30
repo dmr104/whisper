@@ -1,6 +1,6 @@
 # whisperEdit README
 
-This is the README for your extension "whisperEdit". This extension to vscode takes the output JSON from OpenAI Whisper, allowing the user to view the content of its text fields within one paragraph and edit it. 
+This is the README for the extension "whisperEdit". This extension to vscode takes the output JSON from OpenAI Whisper, allowing the user to view the content of its text fields within one paragraph and edit it. 
 
 **IMPORTANT INFORMATION** -- This extension is __mutatative__ towards your original files.  It does **not** save an original backup copy.  If you want to keep copies of the original you *MUST* manually do this yourself before editing and exporting to file formats.  
 
