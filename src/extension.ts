@@ -434,7 +434,7 @@ export function activate(context: vscode.ExtensionContext){
                             const tsvFormatted = myWhisperFormatter.toTSV();
                             const data = encoder.encode(tsvFormatted);
                             vscode.workspace.fs.writeFile(tsvUri, data);
-                            console.log(`tsv file saved successfully to: ${tsvUri.fsPath}`);
+                            // console.log(`tsv file saved successfully to: ${tsvUri.fsPath}`);
                         } catch (error) {
                             console.error('Error saving tsv file:', error);
                             vscode.window.showErrorMessage(`Failed to save tsv file: ${error}`);
