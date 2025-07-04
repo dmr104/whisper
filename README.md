@@ -64,8 +64,28 @@ Here follows the release history of whisperedit.  You can file any bug reports i
 
 You can download the source from github at [whisper open source repository](https://github.com/dmr104/whisper).
 
-I included a schema under /schemas because I intermittently, and upon this eventuality, found that the download link for the online json schema was sometimes broken.  This would be no good somewhere in South America or in Africa if the online connectivity broke.  The schema is referenced within .vscode/settings
+I included a schema under /schemas because I intermittently, and upon this eventuality, found that the download link for the online json schema was sometimes broken.  This would be no good somewhere in South America or in Africa if the online connectivity broke.  The schema I manually referenced within my .vscode/settings (not included) which look like:
 
+```json
+{
+    "json.validate.enable": false,
+	"json.schemas":[
+		{
+			"fileMatch": ["package.json"],
+			"url": "./schemas/package2.schema.json"
+		}
+	],
+	"files.exclude": {
+		"out": false // set this to true to hide the "out" folder with the compiled JS files
+	},
+	"search.exclude": {
+		"out": true // set this to false to include "out" folder in search results
+	},
+	// Turn off tsc task auto detection since we have the necessary tasks as npm scripts
+	"typescript.tsc.autoDetect": "off"
+}
+```
+I am also using dbaeumer.vscode-eslint version 3.0.10 hence the "json.validate.enable": false
 ### 1.0.0
 
 - Initial release of whisperedit, end of June 2025. 
