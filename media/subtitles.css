@@ -1,4 +1,5 @@
 body {
+    font-size: var(--webview-font-size);
 	justify-content: center;
 	align-items: center;
     background-color: rgb(118, 139, 139);
@@ -11,6 +12,10 @@ body.vscode-dark {
 
 #splurge .segment {
     display: inline;
+}
+
+#splurge .segment:empty::before {
+    content: "\00a0";
 }
 
 #toolbar {

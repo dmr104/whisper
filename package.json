@@ -1,5 +1,5 @@
 {
-  "name": "whisperEdit",
+  "name": "whisperedit",
   "displayName": "OpenAI Whisper Edit",
   "description": "A way to edit the subtitles JSON output file from OpenAI Whisper",
   "publisher": "dmr104",
@@ -40,6 +40,19 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "whisperEdit Extension",
+      "properties": {
+        "whisperEdit.webviewFontSize": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 40,
+          "scope": "window",
+          "description": "Font size in pixels used in the Whisper Edit webview.  Set to 0 to use the VS Code editor font size."
+        }
+      }
+    },
     "commands": [
       {
         "command": "whisperedit.createOrShowWebview",

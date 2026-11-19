@@ -154,6 +154,7 @@ export class WebviewManager implements vscode.Disposable {
         // The panel doesn't already exist. Therefore we need to create it.  Remember that we are creating and returning 
         // a bare-bones webview along with the extra value 'newlyCreated:' (which is a boolean) upon which decisions will 
         // be made within the registering of our command within commandDisposable001
+
         let panel: vscode.WebviewPanel;
         panel = vscode.window.createWebviewPanel(
             uniqueViewTypeId,

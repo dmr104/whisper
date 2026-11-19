@@ -51,6 +51,11 @@ export function activate(context: vscode.ExtensionContext){
     // We need this AI generated class to format the outputs in order to export
     const myWhisperFormatter = new WhisperFormatter();
 
+    // We need the following logic to be used within the css of our webview
+    const config = vscode.workspace.getConfiguration('whisperEdit');
+    const myWebviewFontSize: number = config.get<number>('webviewFontSize', 0);
+    const fontSize: number | string = myWebviewFontSize > 0 ? `${myWebviewFontSize}px` : 'var(--vscode-editor-font-size)';
+    
     const commandDisposable001 = vscode.commands.registerCommand("whisperedit.createOrShowWebview", () => {
                                   // I M P O R T A N T ! ! ! ! 
         // We want that each each webview creation will only happen once.  Thereafter we will 
@@ -173,7 +178,7 @@ export function activate(context: vscode.ExtensionContext){
         
         if (panelIsNewlyCreated) {
             // Set up the webview content skeleton from a public function of this instance of webviewPanel.
-            webviewPanel.webview.html = mySubtitlesPanel.getHtmlForWebview(webviewPanel.webview);    
+            webviewPanel.webview.html = mySubtitlesPanel.getHtmlForWebview(webviewPanel.webview, fontSize);    
         }
 
         // Now we must set
@@ -284,7 +289,7 @@ export function activate(context: vscode.ExtensionContext){
             context.subscriptions   
         );
         
-        panelNew.webview.html = mySubtitlesPanel.getHtmlForWebview(panelNew.webview);
+        panelNew.webview.html = mySubtitlesPanel.getHtmlForWebview(panelNew.webview, fontSize);
 
     });
 
@@ -318,7 +323,11 @@ export function activate(context: vscode.ExtensionContext){
 
     // And another one
     const webviewViewDisposable002 = vscode.window.registerWebviewViewProvider(ActivityWebviewViewProvider.viewType, myActivitybarWebviewviewProvider);   
-   
+    
+    // Need these to escape the html characters from the webview when writing to the master json file
+    const htmlEscapeCharMap: Record<string, string> = { "&nbsp;": " ", "&gt;": ">", "&amp;": "&", "`": "\`", "{": "\{", "}": "\}" };
+    const regexHtmlEscape = new RegExp(Object.keys(htmlEscapeCharMap).join("|"), "g");
+
     const commandDisposable004 = vscode.commands.registerCommand('whisperedit.exportAllFormats', async () => {
         // Obtain the ACTIVE webviewPanel
         let myValue: [string, vscode.WebviewPanel] | undefined = undefined;
@@ -379,16 +388,29 @@ export function activate(context: vscode.ExtensionContext){
                         let segments;
                         // Simple string manipulation.  segments is an array of dynamically altered copied DOM from webview
                         segments = dynamicSplurge.match(/<div contenteditable="true" class="segment" id="(\d+)">(.*?)<\/div>/g);
-            
+                        
                         if (segments) {
                             segments.forEach(segment => {
                                 const regex = /<div contenteditable="true" class="segment" id="(\d+)">(.*?)<\/div>/;        
                                 const result = segment.match(regex);
                                 if (result){ // we have a segment of dynamically altered copied DOM from webview
                                     const [ idMatch, contentMatch ] = result.slice(1);  // The id and content of this segment of DOM from webview
-                                    if (idMatch && contentMatch) { // Now we populate the mainJsonDataRecord with the dynamically updated stuff
-                                        universalTextField = universalTextField.concat("", contentMatch);
-                                        mainJsonDataRecord.segments[idMatch].text = contentMatch;
+                                    if (idMatch) { // Now we populate the mainJsonDataRecord with the dynamically updated stuff
+
+                                        let myContentMatch = contentMatch.replace(regexHtmlEscape, match => htmlEscapeCharMap[match]);
+                                        myContentMatch = myContentMatch.replace(/(\s+)(?:&lt;)+(\s+)/g, '$1<$2'); // for "some &lt; stuff"
+                                        myContentMatch = myContentMatch.replace(/(?<=\S)&lt;/g, '\u003c\u200c'); // for "some&lt;&lt;stuff" and for for "some&lt;&lt; stuff"
+
+                                        // Now for "&lt;strong> something bold &lt;/strong>" by "<strong> something bold </strong>"
+                                        myContentMatch = myContentMatch.replace(/(?<!\w)&lt;(\/?(?:br|strong|em|u))\b>/g, '<$1>');
+                                        // What is left?  The likes of "$lt;testCase> or $lt;testCase >", i.e. not in the middle of a word
+                                        myContentMatch = myContentMatch.replace(/(?<!\w)&lt;(?!\/?(?:br|strong|em|u)\b)(\S)/gi, '\u003c\u200c$1');
+
+                                        if (contentMatch === ""){ // Here the content of the <div> is empty except for a \00A0 character
+                                            myContentMatch = myContentMatch.concat(" ");
+                                        }
+                                        universalTextField = universalTextField.concat("", myContentMatch);
+                                        mainJsonDataRecord.segments[idMatch].text = myContentMatch;
                                     }
                                 }
                             });
@@ -474,20 +496,20 @@ export function activate(context: vscode.ExtensionContext){
                             vscode.workspace.fs.writeFile(txtUri, data);
                             // console.log(`enriched txt file saved successfully to: ${txtUri.fsPath}`);
                         } catch (error) {
-                            console.error('Error saving srt file:', error);
-                            vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
+                            console.error('Error saving enriched text file:', error);
+                            vscode.window.showErrorMessage(`Failed to save enriched text file: ${error}`);
                         }
         
                         // PLAIN.TXT
                         try {
                             const regexp = /<(strong|em|u)\b[^>]*>(.*?)<\/\1>/g;
                             const strippedText = mainJsonDataRecord.text.replace(regexp, (match: string, p1: string, p2: string): string => p2);
-                            const data = encoder.encode(strippedText);
+                            const data = encoder.encode(strippedText.replace(/<br\s*\/?>/gi, '\n'));
                             vscode.workspace.fs.writeFile(plainTxtUri, data);
                             // console.log(`plain text file saved successfully to: ${plainTxtUri.fsPath}`);
                         } catch (error) {
-                            console.error('Error saving srt file:', error);
-                            vscode.window.showErrorMessage(`Failed to save srt file: ${error}`);
+                            console.error('Error saving plain txt file:', error);
+                            vscode.window.showErrorMessage(`Failed to save plain text file: ${error}`);
                         }
         
                         // JSON
@@ -522,8 +544,10 @@ export function activate(context: vscode.ExtensionContext){
                                     let htmlContent = Buffer.from(fileData).toString('utf8');
                                     const regex = new RegExp(`\\$\\{booglies\\}`, 'g');
                                     
+                                    let myMainJsonDataRecord = mainJsonDataRecord.text.replace(/\u003c\u200c/g, '&lt;');
+                                    myMainJsonDataRecord = myMainJsonDataRecord.replace(/(\s+)(?:<)+(\s+)/g, '$1&lt;$2'); // for "some < stuff"
                                     //const regex = new RegExp(`paragraph`, 'g');
-                                    htmlContent = htmlContent.replace(regex, mainJsonDataRecord.text);   
+                                    htmlContent = htmlContent.replace(regex, myMainJsonDataRecord);   
                                     // console.log('htmlContent is ', htmlContent);
                                     return htmlContent;
         
