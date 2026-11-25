@@ -6,7 +6,7 @@ All notable changes to the "whisperedit" extension will be documented in this fi
 
 I have not included unit tests or integration tests.
 
-## 2. Bug fixes and feature update in 1.1.0, November 2026
+## 2. Bug fixes and feature update in 2.0.0, November 2026
 
 ### There was a minor but significant bug whereby html characters such as "$nbsp;" got written into the data that the extension was outputting.  This bug remained in existence until now. It is now fixed, and hopefully other html characters, such as "$gt;" should not appear in the data output neither.
 
@@ -42,4 +42,11 @@ You may need to run `Developer: Reload Window` from the Command Palette for this
 let myMainJsonDataRecord = mainJsonDataRecord.text.replace(/\u003c\u200c/g, '&lt;');
 myMainJsonDataRecord = myMainJsonDataRecord.replace(/(\s+)(?:<)+(\s+)/g, '$1&lt;$2'); // for "some < stuff"
 ```
+
+#### A major refactoring of the function `applyFormat` within `subtitles.js` has occurred. It occurred to me that the originally code was poorly designed and indeed prone to glitches as it was a buggy implementation.  This was because I did not interact with the DOM very effectively, focusing indeed upon the proof of concept of interacting with the vscode API backend.  The UI of where a user makes selections in the document is now much improved, and the code is readable logically. I am talking about the `subtitles.js` file. 
+
+#### NEW FEATURE ALERT!!!
+
+### I have added the `scrub` button so that you can remove (srub) all the inline formatting within a given div, without having to go through all of the undo history.  Good idea, this was, of mine.  
+
 # The project now appears to be of production-ready quality.  Okay.  Let's rock and roll.

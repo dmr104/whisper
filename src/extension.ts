@@ -399,12 +399,15 @@ export function activate(context: vscode.ExtensionContext){
 
                                         let myContentMatch = contentMatch.replace(regexHtmlEscape, match => htmlEscapeCharMap[match]);
                                         myContentMatch = myContentMatch.replace(/(\s+)(?:&lt;)+(\s+)/g, '$1<$2'); // for "some &lt; stuff"
-                                        myContentMatch = myContentMatch.replace(/(?<=\S)&lt;/g, '\u003c\u200c'); // for "some&lt;&lt;stuff" and for for "some&lt;&lt; stuff"
+                                        
+                                        // Convert the likes of "'$lt;testCase>' or ' $lt;testCase >'", i.e. not in the middle of a word
+                                        myContentMatch = myContentMatch.replace(/(?<!\w)&lt;(?!\/?(?:br|strong|em|u)\b)(\S)/gi, '\u003c\u200c$1');
+
+                                        myContentMatch = myContentMatch.replace(/(?<=\S)&lt;(?!\?(?:br|strong|em|u)\b)/gi, '\u003c\u200c'); // for "some&lt;&lt;stuff" and for for "some&lt;&lt; stuff"
 
                                         // Now for "&lt;strong> something bold &lt;/strong>" by "<strong> something bold </strong>"
-                                        myContentMatch = myContentMatch.replace(/(?<!\w)&lt;(\/?(?:br|strong|em|u))\b>/g, '<$1>');
-                                        // What is left?  The likes of "$lt;testCase> or $lt;testCase >", i.e. not in the middle of a word
-                                        myContentMatch = myContentMatch.replace(/(?<!\w)&lt;(?!\/?(?:br|strong|em|u)\b)(\S)/gi, '\u003c\u200c$1');
+                                        // myContentMatch = myContentMatch.replace(/(?<!\w)&lt;(\/?(?:br|strong|em|u))\b>/g, '<$1>');
+
 
                                         if (contentMatch === ""){ // Here the content of the <div> is empty except for a \00A0 character
                                             myContentMatch = myContentMatch.concat(" ");

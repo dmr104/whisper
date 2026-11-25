@@ -1,3 +1,4 @@
+
 // Script run within the webview itself.
 (function () {
 
@@ -6,21 +7,31 @@
 	const vscode = acquireVsCodeApi();
 	// The undoStack will enable the user to reverse the changes to editing.
 	const undoStack = [];
-
+	
 	// The following variable is for if we select a div we are currently within via an input.
-	let storedDivId = null;
+	let globalStoredDivIdOfBlob = null;
 
 	// The following is used to pass the event.target.id of where the mouse is clicked to applyFormat
-	let clickDivId = JSON.parse(localStorage.getItem('clickDivId')) || undefined;
+	let globalClickBlobId = JSON.parse(localStorage.getItem('globalClickBlobId')) || undefined;
 
-	// The following stores the outerhtml of a text element.  used on mousedown.
-	let mygrabbedFromDom;
+	// The following stores the outerhtml of a text element.  used upon the function as processMouseClick(), 
+	// and the function as updateToExtUponFormattingChange().
+	let globalGrabbedBlobFromDOM = document.createElement('div');
+	globalGrabbedBlobFromDOM.setAttribute('class', 'segment');
+	globalGrabbedBlobFromDOM.setAttribute('contenteditable', 'true');
+    globalGrabbedBlobFromDOM.setAttribute('id', 'null');
+	
+	
+
+	
 
 	// the following flag is used to control the logic of the change style button press
 	let changedView=false;
 	
 	let splurgeContainer;
-	
+
+	splurgeContainer = document.getElementById('splurge');
+
 	// The following eventListener is to be fired when the DOMContent of the page has loaded.  The message will be 
 	// used in the extension in order to trigger the initial population of the webview by the data structure.
 	window.addEventListener('DOMContentLoaded', () => {			
@@ -28,10 +39,6 @@
 			type: 'webviewReady',
 			text: 'Webview is loaded and ready to receive content.'
 		});
-
-
-		// The following is used in the function addSegmentToSplurge
-		splurgeContainer = document.getElementById('splurge');
 	
 		document.getElementById("boldBtn").addEventListener("click", (e) => {
 			applyFormat("bold");
@@ -44,7 +51,10 @@
 		document.getElementById("changeBtn").addEventListener("click", () =>  applyChangeButton());
 		
 		// Undo button logic
-		document.getElementById("undoBtn").addEventListener("click", () => processOnUndoButton());	
+		document.getElementById("undoBtn").addEventListener("click", () => processOnUndoButton());
+		
+		// Scrubber button
+		document.getElementById("scrubberBtn").addEventListener("click", () => scrubTheBlob());
 	
 		// Listener for messages from the extension. This function responds ultimately to the keybindings.  Note 
 		// that we simulate a click event within processButtonClick.  Goes  
@@ -108,6 +118,7 @@
 		// The following is for receipt to the broadcast done to the webviews
 		window.addEventListener('message', event => {
 			const message = event.data;
+			// console.log('FROM EVENTLISTENER for broadcast done to webview event.data: ', message);
 			if (message.receivedBroadcast === 'broadcastReceivedByWebviews'){
 				const splurgified = document.getElementById(message.segmentId);
 			
@@ -116,81 +127,110 @@
 			}
 		});
 
+		// The following event listener fires whenever a keyboard key is pressed.
 		splurgeContainer.addEventListener('input', (e) => {
+			if (e.target.className = "segment") {
+				console.log('From input event Listener: ', e);
+			}
 			processInput(e);
-	
+			//e.stopPropagation();
 			// Make sure we send an update to the extension from the webView every time a key is input.
-			updateToExt(e);
+			updateToExtUponKeyPress(e);
+			
 		});
 		
-		splurgeContainer.addEventListener('mousedown', (e) => {
-			processMouseClick(e);
+		splurgeContainer.addEventListener('click', (event) => {
+			if (event.target.id !== "splurge" && event.target.className === "segment") {
+				console.log("we have successfully gotten a segment from single click");
+				processMouseClick(event);
+				// event.stopPropagation();
+			}
 		});
 
+		splurgeContainer.addEventListener('dblclick', (e) => {
+				if (e.target.className = "segment") {
+					console.log("we have successfully gotten a segment from dblclick");
+				}	
+				//e.stopPropagation();
+		});
+		
 	});	
 	
 
-	function updateToExt(event){
+	function updateToExtUponKeyPress(event){
 		target = event.target;
 		myID = target.id;
 	
-		myTextContentHTML = target.innerHTML;
+		const myTextContentHTML = target.innerHTML;
 
 		// The following is to update the extension from the webview each time a key is pressed.
-		processUpdateToExt(myID, myTextContentHTML);
-	}
-
-	function processUpdateToExt(myID, myHTML) {
 		vscode.postMessage({ 
 			type: 'updateText',
 			id: myID,
-			segmentHTML: myHTML 
+			segmentHTML: myTextContentHTML 
 		});
 		vscode.postMessage({
 			type: 'sendToWebviewView',
-			segmentHTML: myHTML
+			segmentHTML: myTextContentHTML
 		});
 	}
 
-	function anotherUpdateToExt () {			
-		// The following is to grab the modified div in order to update the extension from the webView each 
-		// time a formatting occurs (bold, italics, underline).
+	function updateToExtUponFormattingChange (myBlobObj, liveBlobDOMElement) {			
+		// The following is to process the unmodified myBlobObj AND the modified liveBlobDOMElement
+		// in order to update the extension from the webView each time a formatting occurs 
+		// (bold, italics, underline).
 
 		// Set the innerHTML of a variable to the provided outerHTML from a global variable.
-		let tempDiv = document.createElement('div');
-		tempDiv.innerHTML = mygrabbedFromDom;
-		let myStoredDiv = tempDiv.firstElementChild;
+		console.log('myBlobObj within updateToExtUponFormattingChange is:', myBlobObj);
+		console.log('liveBlobDOMElement within updateToExtUponFormattingChange is:', liveBlobDOMElement);
 
-		const divID = myStoredDiv.id;
-		let afterStoredDiv = document.getElementById(divID);
+		//let tempDiv = document.createElement('div');
+		//tempDiv.outerHTML = globalGrabbedBlobFromDOM.outerHTML;
+		// let myStoredDiv = tempDiv.firstElementChild;
+
+		//const divID = myStoredDiv.id;
+//		let afterStoredDiv = document.getElementById(divID);
 		// We pass two fields of information from the webview to the extension.
-		const myID = afterStoredDiv.id;
-		const divInnerHTML = afterStoredDiv.innerHTML;
 
-		processUpdateToExt(myID, divInnerHTML);
+		if (myBlobObj.id) {
+				vscode.postMessage({ 
+				type: 'updateText',
+				id: liveBlobDOMElement.id,
+				segmentHTML: liveBlobDOMElement.innerHTML 
+			});
+			vscode.postMessage({
+				type: 'sendToWebviewView',
+				segmentHTML: liveBlobDOMElement.innerHTML
+			});
+		}
 
 	}
 
 	function applyFormat(type) {
-		// We store this div from the DOM in case we click a formatting button 
-		// with the text highlighted within a previously formatted bit
-		let storeThisDiv = document.getElementById(clickDivId);
-		const theStoredDiv = storeThisDiv.outerHTML;
-
+		
+		console.log('undoStack from start of applyFormat ', undoStack);
+		let storedBlobFromGlobalClick = document.getElementById(globalClickBlobId);
+		console.log('clickDiv id is: ', globalClickBlobId);
+		console.log('storedBlobFromGlobalClick from applyFormat is:', storedBlobFromGlobalClick);
+		console.log('storedBlobFromGlobalClick.childNodes from applyFormat is:', storedBlobFromGlobalClick.childNodes);
+		
 		// Get the element where the cursor is located
-		const selection = window.getSelection();
+		const selection = document.getSelection();
+		console.log('selection is:', selection);
 
 		if (!selection.rangeCount) {
 			return;
 		}
 
+		// We encode a store of all the Ranges of a selection within a document for potential future
+		// expandability, although this is probably never likely to be utilized.  In practice, we are dealing
+		// with one Range only at a time, i.e. to Range object as ranges[0]. 
 		let ranges = [];
 
-		sel = window.getSelection();
-
-		for (let i = 0; i < sel.rangeCount; i++) {
-		ranges[i] = sel.getRangeAt(i);
+		for (let i = 0; i < selection.rangeCount; i++) {
+			ranges[i] = selection.getRangeAt(i);
 		}
+
 		/* Each item in the ranges array is now a range object representing one of the ranges in the current selection */
 
 		let tag;
@@ -208,136 +248,152 @@
 			tag = 'span';
 		}
 
-		const range = selection.getRangeAt(0);
-	
-		let myText = range.startContainer;
-
-		let myParentElement;
-   		// If it's a text node, get its parent
-        if (myText.nodeType === Node.TEXT_NODE) {
-            myParentElement = myText.parentElement;
-        } else if (myText.nodeType === Node.ELEMENT_NODE) {
-   		 myParentElement = myText; // If the common ancestor is an element, use it directly
-		}
-
-		// console.log('myParentElement.nodeName is ', myParentElement.nodeName);
-		// console.log('myParentElement.nodeType is ', myParentElement.nodeType);
+		// Select out only Range object with i = 0, as mentioned earlier in the above comment.
+		// We use the range object in this function to find out where the user has clicked, and which input
+		// blob has been entered. This is a clean way to work and is preferable than storing everything in a 
+		// global variable, which, incidentally,the variable as globalClickBlobId does do. What we really need the 
+		// range object for also, is to find out what text the user has highlighted, for cursor (caret) 
+		// manipulation, and restoration upon the use to the button as undo. Think of this as a surgeon using a
+		// scalpel, in comparison to a tree-surgeon using a chainsaw.  We won't, incidentally, utilize the 
+		// variable as globalClickBlobId for manipulating DOM elements because the chainsaw breaks the UI.  That's good
+		// to know, isn't it?
+		const i = 0;
+		console.log('range is', ranges[i]);
 		
-		if (myParentElement.nodeType === Node.ELEMENT_NODE && 
-			( 	myParentElement.nodeName === 'STRONG' || 
-				myParentElement.nodeName === 'U' || 
-				myParentElement.nodeName === 'EM'	)) {
-			const regexp = /<(strong|em|u)>(.*?)<\/\1>/;
-			const originalHTML = myParentElement.outerHTML;
-			const result = originalHTML.match(regexp);
-			let myTag, cleanedText;
-			if (result){
-				const [tag, text] = result.slice(1);
-				myTag = tag;
-				cleanedText = text;
-			}
+		const familyOfNodes = ranges[i].commonAncestorContainer.parentNode.childNodes;
+		
+		console.log('familyOfNodes is:', familyOfNodes);
 
-			if (tag === myTag){
-				myParentElement.outerHTML = cleanedText;
-				// Replace the selected contents
-			} else {
-				const newElement = document.createElement(tag);
-				newElement.innerHTML = cleanedText;
-				myParentElement.outerHTML = newElement.outerHTML;
-			};
-			range.deleteContents();
-			range.selectNodeContents(myParentElement);
-			// Move cursor after the inserted node
-			range.setStartBefore(myText);
-			range.setEndAfter(myText);
-			// // Update selection
-			selection.removeAllRanges();
-			// selection.addRange(range);
-			
-			anotherUpdateToExt();
-			return;
-		}
-
-
-		// Store the start and end positions.  It is important to realise that we grab a node from the parent using
-		// parent.childNodes[i], but first we need to obtain the parent from where the cursor was located.
-		// The following produces the actual text of the node.  use .parent to obtain the parent.
-		const startContainer = range.startContainer;
-		const startOffset = range.startOffset;
-		const endContainer = range.endContainer;
-		const endOffset = range.endOffset;
-
-		const selectedText = range.toString();
+		// Find the index of the text node within which we highlighted
 	
-		if (selectedText.length === 0) {
-			return;
-		}
-
-
-		const wrapper = document.createElement(tag);
-		wrapper.textContent = selectedText;
-
-        // Replace the selected contents
-		range.deleteContents();
-		range.insertNode(wrapper);
-	
-		// Move cursor after the inserted node
-		range.setStartAfter(wrapper);
-		range.setEndAfter(wrapper);
-		// Update selection
-		selection.removeAllRanges();
-		selection.addRange(range);
-
-		// Get the common ancestor
-		// The following is to find the div containing where the mouse was clicked.  
-		// This is done in order to decide whether the commonancestor has an id, if 
-		// it does then we are within a div not a strong, italic, or underline
-		const commonAncestor = range.commonAncestorContainer;
-
-		// Find the index of the text node
-		const children = commonAncestor.childNodes;	
 		let index = -1;
-		for (let i = 0; i < children.length; i++) {
-			if (children[i] === startContainer) {
-				index = i;
+		for (let k = 0; k < familyOfNodes.length; k++) {
+			if (ranges[i].commonAncestorContainer === familyOfNodes[k] ) {
+				index = k;
 				break;
 			}
 		}
-		
-		// Log the index
-		// console.log('Text node index in common ancestor children:', index);
 
-		// Store the initial cursor position
-		const cursorState = {
-			startContainer: startContainer,
-			startOffset: startOffset,
-			endContainer: endContainer,
-			endOffset: endOffset,
-			nodeIndex: index
-		};		
-		
-		// console.log('cursorState', cursorState);
+		console.log('commonAncestorContainer.parentElement.nodeType is:', ranges[i].commonAncestorContainer.parentElement.nodeType);
 
-		if (commonAncestor && commonAncestor.id) {			
-			// Make sure we record this change in order to give the possibility of reversing it.
-			undoStack.push({
-				id: commonAncestor.id, 
-				cursor: cursorState, 
-				blobHTML: mygrabbedFromDom});
-			// Make sure that the update to the DOM is transmitted from webview to extension.
-			anotherUpdateToExt();	
-		} else {
-				storeThisDiv.innerHTML = theStoredDiv;
-				performUndoEventFormat('do');
-				console.log('Return now', undoStack);
+		if (!ranges[i].commonAncestorContainer.parentElement.nodeType === Node.ELEMENT_NODE) {return;}
+		if (ranges[i].commonAncestorContainer.parentElement.childNodes[index].nodeName === 'STRONG') {return;}
+		if (ranges[i].commonAncestorContainer.parentElement.childNodes[index].nodeName === 'U') {return;}
+		if (ranges[i].commonAncestorContainer.parentElement.childNodes[index].nodeName === 'EM') {return;}
+		
+		console.log('the place where you clicked is internally a text node', ranges[i].commonAncestorContainer.parentNode.childNodes[index].nodeType);
+		console.log('And its parent is of node_type:', ranges[i].commonAncestorContainer.parentNode.nodeType);
+		console.log('THE INDEX is: ', index);
+
+		if (ranges[i].commonAncestorContainer.parentNode.childNodes[index].nodeType === Node.TEXT_NODE) {
+			const dynamicallyGrabbedBlobID = ranges[i].commonAncestorContainer.parentNode.id;
+			const dynamicallyGrabbedBlobHTML = ranges[i].commonAncestorContainer.parentNode.outerHTML;
+			
+			// exit the wider function if a selection of text crosses node boundaries, or crosses a <br>
+			console.log('selection.getComposedRanges()', selection.getComposedRanges());
+			
+			if (!selection.getComposedRanges()){ return; };
+
+			const gottenNode = ranges[i].commonAncestorContainer.parentNode.childNodes[index];
+			let gottenNodeText = gottenNode.textContent;
+
+			const blobbyElement = document.createElement(tag);
+			
+			const newBlobElement = document.createElement('div');
+			newBlobElement.setAttribute('class', 'segment');
+			newBlobElement.setAttribute('contenteditable', 'true');
+			newBlobElement.setAttribute('id', dynamicallyGrabbedBlobID);
+
+			console.log('gottenRange', selection.getRangeAt(0));
+			console.log('my gottenNode is: ', ranges[i].commonAncestorContainer.parentNode.childNodes[index]);
+			console.log('my gottenNode parent node is: ', ranges[i].commonAncestorContainer.parentNode);
+			console.log(' A NEW aPPROaCH is ', ranges[i].commonAncestorContainer.parentNode.children[storedBlobFromGlobalClick.id] ); 
+
+			const formerString = gottenNodeText.slice(0, ranges[i].startOffset);
+			const middleString = gottenNodeText.slice(ranges[i].startOffset, ranges[i].endOffset);
+			const latterString = gottenNodeText.slice(ranges[i].endOffset);
+			
+			// Store a copy of the ranges's startOffSet and endOffset before the update to the DOM changes everything
+			const myStartOffset = ranges[i].startOffset;
+			const myEndOffset = ranges[i].endOffset; 
+
+			// We cannot use `blobHTML: globalGrabbedBlobFromDOM`. So, we use `dynamicallyGrabbedBlobHTML` here, not later, 
+			// because we want to record on the undo stack, a record of what the item was, and not what it will have 
+			// become after DOM manipulation. Note that once we ought to desist from communicating this value of 
+			// `dynamicallyGrabbedBlobHTML` via global variables in favour of subsequent delegated function calls 
+			// within applyFormat, passing this data as a parameter to these delegated functions. 
+
+			const myObjectToPushToUndoStack = {
+				id: dynamicallyGrabbedBlobID, 
+				cursor: { 'startOffset': myStartOffset, 'endOffSet': myEndOffset }, 
+				blobHTML: dynamicallyGrabbedBlobHTML
+			};
+
+			undoStack.push(myObjectToPushToUndoStack);			
+
+			console.log('blobbyElement BEFORE textContent after DOM manipulation is:', blobbyElement);
+			blobbyElement.insertAdjacentText( 'afterbegin', middleString);
+			console.log('blobbyElement AFTER textContent after DOM manipulation is:', blobbyElement);
+
+			newBlobElement.append(formerString, blobbyElement, latterString);
+
+			// Now we manipulate the DOM
+			ranges[i].commonAncestorContainer.parentNode.replaceChild(newBlobElement, ranges[i].commonAncestorContainer.parentNode.childNodes[index]);		
+
+			// Remember to now store a the value of which DOM has been most recently altered within the global as 
+			// theDivMostRecentlyAltered, which will be read by  
+
+			//ranges[i].deleteContents();
+			//ranges[i].selectNodeContents(myParentElement);
+			// Move cursor after the inserted node
+			//ranges[i].setStartBefore(myText);
+			//ranges[i].setEndAfter(myText);	
+
+			
+			// storedBlobFromGlobalClick.innerHTML = newBlobDiv.innerHTML;
+			console.log('from applyFormat startContainer, startOffset, endContainer, endOffSet:', ranges[i].startContainer, ranges[i].startOffset, ranges[i].endContainer, ranges[i].endOffset);
+			console.log('newBlobElement textContent after DOM manipulation is:', newBlobElement);
+
+			// wrapper.textContent = ranges[i].startContainer;
+			// Replace the selected contents
+			//ranges[i].deleteContents();
+			//ranges[i].insertNode(wrapper);
+			
+			// Move cursor after the inserted node
+			//ranges[i].setStartAfter(storedBlobFromGlobalClick);
+			//ranges[i].setEndAfter(storedBlobFromGlobalClick);
+			
+			// ranges[i].selectNodeContents(myParentElement);
+			// Move cursor after the inserted node
+			// ranges[i].setStartBefore(myParentElement);
+			// ranges[i].setEndAfter(myParentElement);	
+			// Update selection
+			
+	
+			// selection.removeAllRanges();
+			// selection.addRange(ranges[i]);
+
+			if (storedBlobFromGlobalClick.id) {			
+				// Make sure we record this change in order to give the possibility of reversing it.
+	
+				} else {
+					storedBlobFromGlobalClick.innerHTML = storedBlobFromGlobalClick.outerHTML;
+					console.log("DOES THIS EVER FIRE??????");
+					performUndoEventFormat('do');
+			}
+				
+			// console.log('Last on undostack is ', undoStack[undoStack.length - 1]);
+			// console.log('range is ', range);
+			
+			// console.log('selection is ', selection);
+			// Make sure that the update to the DOM is transmitted from webview to extension ever time we 
+			// invoke this command.
+			updateToExtUponFormattingChange(myObjectToPushToUndoStack, storedBlobFromGlobalClick);
 		}
-
-		// console.log('Last on undostack is ', undoStack[undoStack.length - 1]);
-		// console.log('range is ', range);
 		
-		// console.log('selection is ', selection);
-		// console.log(undoStack);
-
+		console.log('undoStack from end of applyFormat ', undoStack);
+		
+		
 	}
 
 
@@ -357,7 +413,10 @@
 				break;
 			case 'undoButtonClick':
 				useThisButtonId = 'undoBtn';
-				break;	
+				break;
+			case 'performScrubTheBlob':
+				useThisButtonId = 'scrubberBtn';
+				break;
 			default:
 				useThisButtonId = 'defaultBtn';
 			}
@@ -365,55 +424,102 @@
 		
 	};
 
-	const processMouseClick = function (event) {
+	const processMouseClick = function (event) {	 
 		let target = event.target;
+		
+		const testing = true;
+		
+		if (testing) {
+			let selection = window.getSelection();
+			console.log('from process mouse click :', {
+				detail: event.detail,
+				clickCount: event.detail,
+				text: selection.toString(),
+				anchorNode: selection.anchorNode,
+				anchorOffset: selection.anchorOffset,
+				focusNode: selection.focusNode,
+				focusOffset: selection.focusOffset,
+				rangeCount: selection.rangeCount,
+				id: event.target.id
+			});
+
+		}
+
+		console.log('PUCKOOWWWWWW!');
+        console.log('EVENT in processMouseClick :', event);
+		console.log('undoStack from processMouseClick is :', undoStack);
 
 		// move up to the div element with an id on it
-		while (!target.id){
-			target = target.parentNode;
-		}
+		//while (!target.id){
+		//	target = target.parentNode;
+		//}
 
-		// clickDivId is global, as is mygrabbedFromDom which being a string is passed by value.
-		// We can use this fact to reconstruct an HTMLELement in the function anotherUpdatetoExt.
-		clickDivId = target.id;
+		// globalClickBlobId is global, as is globalGrabbedBlobFromDOM which being a string is passed by value.
+		// We can use this fact to reconstruct an HTMLELement in the function updatetoExtUponFormattingChange.
+		globalClickBlobId = target.id;
 		// Here we store this global variable to persist it in the webview 
-		localStorage.setItem('clickDivId', JSON.stringify(clickDivId));
-		let grabbedFromDom = document.getElementById(clickDivId);
-		mygrabbedFromDom = grabbedFromDom.outerHTML;
-		// clickDivId and storedDivId are globally scoped
+		localStorage.setItem('globalClickBlobId', JSON.stringify(globalClickBlobId));
+		let localGrabbedBlobFromDom = document.getElementById(globalClickBlobId);
 
-		// console.log('storedDivId is ', storedDivId);
-		// console.log('clickDivId is ', clickDivId);
-		// console.log('target is ', target);		
+		// The globalGrabbedBlobFromDOM global varible is used to commmunicate information to the function as 
+		// updateToExtUponFormattingChange
+		if (localGrabbedBlobFromDom.className === "segment") {
+			console.log("SEGMENT YES");
+			globalGrabbedBlobFromDOM.id = localGrabbedBlobFromDom.id;
+			globalGrabbedBlobFromDOM.innerHTML = localGrabbedBlobFromDom.innerHTML;
+			console.log('globalGrabbedBlobFromDOM from processMouseClick is ', globalGrabbedBlobFromDOM);
+			console.log('localGrabbedBlobFromDOM from processMouseClick is ', localGrabbedBlobFromDom);
+		}
+		// globalClickBlobId and globalStoredDivIdOfBlob are globally scoped
 
+
+		// console.log('globalClickBlobId is ', globalClickBlobId);
+		// console.log('target is ', target);
 	};
 
+
+		// The function as processInput is fired whenever a key is pressed on the keyboard
 	const processInput = function (event) {
+		const localInputDivIdOfBlob = event.target.id;
+		const eventTargetInnerHTML = event.target.innerHTML;
+		console.log('Caught in a trap eventTarget:', event.target);
+		console.log('Caught in a trap, eventTargetInnerHTML :', eventTargetInnerHTML);
+		console.log("Caught in a trap, globalGrabbedBlobFromDOM :", globalGrabbedBlobFromDOM); 
 		
-		const target = event.target;
-		const inputDivId= target.id;
-
-		if (storedDivId === null) { // No ID is currently stored
-
-			undoStack.push({
-				id: target.id,
-				blobHTML: mygrabbedFromDom});
+		let myLocalGrabbedBlobFromDom = document.getElementById(localInputDivIdOfBlob);
+		console.log("Caught in a trap, myLocalGrabbedBlobFromDom :", myLocalGrabbedBlobFromDom); 
 		
-			storedDivId = inputDivId;
-
-		} else { // An ID is already stored
-				
-			if (storedDivId !== inputDivId) {  // No match. Have moved to another box.	
-				undoStack.push({
-					id: target.id,
-					blobHTML: mygrabbedFromDom});
-					
-				//Now update the storedDivId
-				storedDivId = inputDivId;
-					
-			} 
+		// If we are the cursor is not within a blob 
+		// was testing upon !globalStoredDivIdOfBlob
+		if (!localInputDivIdOfBlob) { // No ID is currently found from local blob
+			return;
 		}
 		
+		
+		// globalGrabbedBlobFromDOM will always track the segment location which has been clicked within: 
+		// see `processMouseClick()`.
+		// The following occurs if the first text change occurs upon a virgin undoStack.  
+		if (!undoStack.length) {
+			undoStack.push({
+				id: globalGrabbedBlobFromDOM.id,
+				blobHTML: globalGrabbedBlobFromDOM.innerHTML
+			});	
+			globalStoredDivIdOfBlob = localInputDivIdOfBlob;
+			console.log('undoStack from processInput first go is :', undoStack);
+		};
+		
+		// Otherwise, if the user has selected a new segment after inputting as many keys as she likes 
+		// into the old one
+		if (globalStoredDivIdOfBlob !== localInputDivIdOfBlob) {  // No match, i.e. we have moved to another box.	
+			undoStack.push({
+				id: globalGrabbedBlobFromDOM.id,
+				blobHTML: globalGrabbedBlobFromDOM.innerHTML
+			});
+			// Now update the global variable as globalStoredDivIdOfBlob in order to perform this test the next time
+			globalStoredDivIdOfBlob = localInputDivIdOfBlob;
+			console.log('undoStack from processInput is :', undoStack);
+
+		} 		
 	};
 
 	function addSegmentToSplurge(mytext, id) {
@@ -452,114 +558,162 @@
 	}
 
 	function processOnUndoButton () {
-		
 		// Deselect the already selected text
-		const selection = window.getSelection();
-		selection.removeAllRanges();
+		//const selection = document.getSelection();
+		//selection.removeAllRanges();
+		const mostRecentFromStack = undoStack.pop();
 
-		if (undoStack.length === 0){
-			storedDivId = null;  //reset to start stack at the beginning
-		} else {  // undoStack length is greater than 0
-			const lastOnStack = undoStack[undoStack.length - 1];
-			// Logic is for smooth user experience depending upon where they left off when undo was pressed
-			if ('cursor' in lastOnStack) {	
-					// if the last on stack was from a formatting alteration
-
-					// console.log('A b/it/u alteration');
-					performUndoEventFormat();
-
-			} else { 
-				// if the last on stack is from a text alteration change
-
-					// console.log('A text alteration ');					
-					performUndoEventTextChange();
-				}
-			undoStack.pop();
-
-			// Make sure we update extension from the webview.
-			anotherUpdateToExt();
-		}
-
-	}
-
-	function performUndoEventFormat (cancel = 'not') {
-			
-			//cancel is set to 'do' when this function is invoked from applyFormat
-			if (cancel === 'do'){
-				return;
-			} else {  // cancel === 'not'
-				// Obtain the last object from the stack
-				const fromStack = undoStack[undoStack.length - 1];
-		
-				// grab element from DOM
-				const fromDOM = document.getElementById(fromStack.id);
-		
-				// update the DOM
-				fromDOM.outerHTML = fromStack.blobHTML;
+		if (!mostRecentFromStack){
+			// globalStoredDivIdOfBlob = null;  //reset to start stack at the beginning
+			return;
+		} 
 	
-				// Call restoreCursor to which function we pass the grabbed DOM element as div
-				restoreCursor(fromStack);
+		// undoStack length was greater than 0
+		// The following is a peek-ahead so that we can work with the last remaining item
+		// on the stack if the undo button is ever pressed repeatedly until it gets there.
+		// const mostRecentFromStack = undoStack[undoStack.length - 1];
+		let grabbedBlobByIdFromDOM = document.getElementById(mostRecentFromStack.id);
+		console.log('most recent from stack, :', mostRecentFromStack, 'grabbedBlobByIdFromDOM is, :', grabbedBlobByIdFromDOM.parentNode);
+		// Logic is for smooth user experience depending upon where they left off when undo was pressed
+		if (mostRecentFromStack.cursor) {	
+				// if the last on stack was from a formatting alteration
+				console.log('mostRecentFromStack from processOnUndoButton passsing to performUndoEventFormat:', mostRecentFromStack);
+				console.log('grabbedBlobByIdFromDOM from processOnUndoButton passing to performUndoEventFormat :', grabbedBlobByIdFromDOM);
+				// console.log('A b/it/u alteration');
+				performUndoEventFormat(mostRecentFromStack, grabbedBlobByIdFromDOM);
+
+		} else { 
+				// the last on stack is from a text alteration change
+				console.log('mostRecentFromStack from processOnUndoButton passsing to performUndoEventTextChange: ', mostRecentFromStack);
+				console.log('grabbedBlobByIdFromDOM from processOnUndoButton passing to performUndoEventTextChange :', grabbedBlobByIdFromDOM);
+				// console.log('A text alteration ');					
+				performUndoEventTextChange(mostRecentFromStack, grabbedBlobByIdFromDOM);
 			}
 
+		// Make sure we update extension from the webview.
+		updateToExtUponFormattingChange(mostRecentFromStack, grabbedBlobByIdFromDOM);
+	}
+
+	function performUndoEventFormat (mostRecentFromUndoStack, grabbedBlobByIdFromDOM) {
+			// This reverses a formatting change like bold, or underline
+			console.log('undoStack from start of performUndoEventFormat', undoStack);
+			console.log("From performUndoEventFormat mostRecentFromUndoStack, ", mostRecentFromUndoStack);
+
+			// grab element from DOM. 
+			console.log('From performUndoEventFormat grabbedBlobByIdFromDOM prior to it being updated is: ', grabbedBlobByIdFromDOM);
+
+			// update the DOM
+			grabbedBlobByIdFromDOM.outerHTML = mostRecentFromUndoStack.blobHTML;
+
+			// Call restoreCursor to which function we pass the grabbed DOM element as div
+			restoreCursor(mostRecentFromUndoStack);
 		}
 
 	// Restore the cursor position
-	function restoreCursor(fromStack) {
-			// console.log("last blob from stack ", fromStack.blobHTML);
-	
-			cursorState = fromStack.cursor;
-			// console.log("mycursorState", cursorState);
-	
-			const range = document.createRange();
-			const selection = window.getSelection(); 
+	function restoreCursor(mostRecentItemfromStack) {
+			console.log("argument passed to restoreCursor is :", mostRecentItemfromStack);
+			const myDivNumberFromUndoStack = mostRecentItemfromStack.id;
+			const cursorState = mostRecentItemfromStack.cursor;
 
+			console.log("cursorState is from restoreCursor is:", cursorState);
+			console.log('myDivNumberFromUndoStack from restoreCursor is:', myDivNumberFromUndoStack);
 
-			const mydiv = document.getElementById(fromStack.id);
+			// const theGrabbedSplurgeFromDOM = document.getElementById('splurge');
+			// const children = theGrabbedSplurgeFromDOM.children;
+			// console.log('theGrabbedSplurgeFromDOM from restoreCursor is:', theGrabbedSplurgeFromDOM);
 
-			const children = mydiv.childNodes;
-			// console.log('children', children);
-
-			const selectedChild = children[cursorState.nodeIndex];
+			// const selectedChildFromDOM = children[myDivNumberFromUndoStack];
+			// console.log('selectedChildFromDOM is:', selectedChildFromDOM);
 			
-			// // Set the start and end of the range to the desired offset
+			const theGrabbedBlobFromDOM = document.getElementById(myDivNumberFromUndoStack);
+			console.log('theGrabbedBlobFromDOM from restoreCursor is:', theGrabbedBlobFromDOM);
 
-			// range.setStart(selectedChild, cursorState.startOffset);
-			// range.setEnd(selectedChild, cursorState.endOffset);
+			// const selectedChildFromDOM = children[myDivNumberFromUndoStack];
+			// console.log('selectedChildFromDOM is:', selectedChildFromDOM);
+			// Set the start and end of the range to the desired offset
+
+			// Clear any existing selection and apply the new range
+			//const mySelection = window.getSelection();
+			//mySelection.removeAllRanges();
+
+			//const range = document.createRange();
+			//range.setStart(selectedChildFromDOM.firstChild, cursorState.startOffset);
+			//range.setEnd(selectedChildFromDOM.firstChild, cursorState.endOffset);
+			//console.log('mySelection from restoreCursor is :', mySelection);
+			//mySelection.addRange(range);
+		    //for (let i =0; i < cursorState.length; i++) {}
 
 			// Was changed to the following to avoid a console.log error upon mix and matching the undo button with manual unbold, etc. 
 
-			range.setStartBefore(selectedChild);
-			range.setEndAfter(selectedChild);
-
-			console.log('range is ', range);
-			// Clear any existing selection and apply the new range
-			// const selection = window.getSelection();
-			selection.removeAllRanges();
-			selection.addRange(range);
-		
+			//range.setStartBefore(selectedChildFromDOM);
+			//range.setEndAfter(selectedChildFromDOM);		
 	}
 
-	function performUndoEventTextChange () {
-		// console.log('From undostack ', undoStack);
-			if (!undoStack[0]) { 
-				return; 
-			};
-			let grabbedInnerDivByIdFromDOM = document.getElementById(undoStack[undoStack.length - 1].id);
-			// console.log('from DOM performUndoEventTextChange ', grabbedInnerDivByIdFromDOM);
-			// console.log('From blobHTML performUndoEventTextChange ', undoStack[undoStack.length - 1].blobHTML);
+	function performUndoEventTextChange (mostRecentItemFromStack, grabbedBlobByIdFromDOM) {
+			//if (!undoStack[0]) { 
+			//	return; 
+			//};
+			
+			// let grabbedInnerDivByIdFromDOM = document.getElementById(undoStack[undoStack.length - 1].id);
+			console.log("BOOGLIES!!!!!!");
+			console.log('from DOM performUndoEventTextChange grabbedBlobByIdFromDOM :', grabbedBlobByIdFromDOM);
+			console.log('From performUndoEventTextChange mostRecentItemFromStack :', mostRecentItemFromStack);
 
-			grabbedInnerDivByIdFromDOM.outerHTML = undoStack[undoStack.length - 1].blobHTML;
-
-			let mydiv = undefined; 
-			if (undoStack.length > 0){
-				mydiv = document.getElementById(undoStack[undoStack.length - 1].id);
-			}
-			if (mydiv){
-				mydiv.focus();
-			}
+			console.log('undostack from start of performUndoEventTextChange', undoStack);
+			
+			grabbedBlobByIdFromDOM.innerHTML = mostRecentItemFromStack.blobHTML;
+			//grabbedBlobByIdFromDOM.focus();
+			// if (undoStack.length > 0){
+			//}
 			
 		}
 
-	
+		function scrubTheBlob () {
+			// console.log('globalClickBlobId is:', globalClickBlobId);
+			let theGrabbedSplurge = document.getElementById('splurge');
+			// console.log('theGrabbedSplurge is:', theGrabbedSplurge);
+			let theGrabbedBlobFromDOM = theGrabbedSplurge.children[globalClickBlobId];
+			// console.log('the grabbed child is:', theGrabbedBlobFromDOM);
+			let theInnerHTML = theGrabbedBlobFromDOM.innerHTML;
+			// console.log('theHTML prior is:', theInnerHTML);
+			
+			theInnerHTML = theInnerHTML.replace(/<(\/?(?:br|strong|em|u)\b)>/gi, '');
+			theGrabbedBlobFromDOM.innerHTML = theInnerHTML;
+			
+			undoStack.push({
+				id: theGrabbedBlobFromDOM.id,
+				blobHTML: globalGrabbedBlobFromDOM
+			});
+			console.log('undoStack from scrubTheBlob', undoStack);
+		}
+
+		// The following function was added late in the day, for revision 2.0.0
+		// It ensures that there can only ever be one consecutive \u200c in the DOM after a \u003c
+		// Otherwise the invisible \u200c grows longer and longer in the ground truth json upon 
+		// every "export to all formats".
+		function processSplurgeDivs() {
+			let lastChild = splurgeContainer.lastChild;
+			for (const child of lastChild.childNodes) {
+				if (child.nodeType === Node.TEXT_NODE) {
+					child.data = child.data.replace(/\u200c/g, '');
+				}
+			}	
+			
+		}
+
+		if (splurgeContainer) {
+			// Run immediately in case divs are already there
+			if (splurgeContainer.children.length > 0) {
+				processSplurgeDivs();
+			}
+
+			// Also watch for any divs added later
+			const observer = new MutationObserver(() => {
+				// console.log('splurgeContainer length is:', splurgeContainer.children.length);
+				processSplurgeDivs();
+			});
+			
+			observer.observe(splurgeContainer, { childList: true });
+		}
 
 }());

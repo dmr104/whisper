@@ -78,6 +78,7 @@ export class SubtitlesPanel {
                             <button id="italicBtn">Italic</button>
                             <button id="underlineBtn">Underline</button>
                             <button id="undoBtn">Undo</button>
+                            <button id="scrubberBtn">Scrubber</button>
                         </div> 
                         <!-- Here is where stuff gets injected -->               
                         <div id="splurge"></div>
